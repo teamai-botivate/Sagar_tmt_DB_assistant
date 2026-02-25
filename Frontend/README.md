@@ -1,4 +1,4 @@
-# Botivate v1.0 - Frontend
+# Sagar TMT Pipes - Frontend
 
 A modern chat interface for the DB Assistant backend.
 
@@ -41,7 +41,7 @@ Then open: **http://localhost:8000/app**
 Edit `app.js` to change the backend URL:
 
 ```javascript
-const API_BASE_URL = 'http://localhost:8000';  // Change this if needed
+const API_BASE_URL = "http://localhost:8000"; // Change this if needed
 ```
 
 ## ✨ Features
@@ -77,7 +77,7 @@ const API_BASE_URL = 'http://localhost:8000';  // Change this if needed
 
 ## 🔗 API Endpoints Used
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Check backend status |
-| POST | `/chat` | Send chat message |
+| Method | Endpoint  | Description          |
+| ------ | --------- | -------------------- |
+| GET    | `/health` | Check backend status |
+| POST   | `/chat`   | Send chat message    |

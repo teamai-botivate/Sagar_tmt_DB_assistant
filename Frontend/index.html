@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Botivate v1.0 - AI Chat Bot Dashboard</title>
+  <title>Sagar TMT & Pipes - AI Chat Bot Dashboard</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -16,7 +16,10 @@
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <h2><i class="fas fa-comments"></i> <span></span>Chats</span></h2>
+        <h2 class="sidebar-branding">
+          <i class="fas fa-comments chat-icon"></i>
+          <img src="logo.png" alt="Sagar Logo" class="sidebar-logo">
+        </h2>
         <div class="header-btns">
           <button class="new-chat-btn" id="newChatBtn" title="New Chat">
             <i class="fas fa-plus"></i>
@@ -44,8 +47,7 @@
           <i class="fas fa-bars"></i>
         </button>
         <div class="model-selector">
-          <span>Botivate v1.0</span>
-          <i class="fas fa-chevron-down"></i>
+          <img src="logo.png" alt="Logo" class="nav-logo">
         </div>
         <div class="header-actions">
           <button class="btn-secondary" id="clearChatBtn" title="Clear Chat">
@@ -86,6 +88,7 @@
             </span>
           </div>
         </div>
+        <div class="powered-by">Powered by Botivate</div>
       </footer>
     </main>
   </div>

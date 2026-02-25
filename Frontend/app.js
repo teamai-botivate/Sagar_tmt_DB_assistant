@@ -1,5 +1,5 @@
 /**
- * Botivate v1.0 - Frontend Application with STREAMING
+ * Sagar TMT Pipes - Frontend Application with STREAMING
  * Features:
  * - Real-time streaming responses (word-by-word)
  * - Status updates during processing
