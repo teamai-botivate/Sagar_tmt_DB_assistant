@@ -11,7 +11,38 @@
 </head>
 
 <body>
-  <div class="app-container">
+  <!-- Login Overlay -->
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-container">
+      <div class="login-orb"></div>
+      <div class="login-logo">
+        <img src="logo.png" alt="Sagar Logo" class="login-logo-img">
+      </div>
+      <h2 class="login-title">Admin Login</h2>
+      <p class="login-subtitle">Authorized personnel only</p>
+      <form id="loginForm" autocomplete="off">
+        <div class="login-field">
+          <i class="fas fa-user"></i>
+          <input type="text" id="loginInput" placeholder="Email or Username" required autocomplete="off" />
+        </div>
+        <div class="login-field">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="loginPassword" placeholder="Password" required autocomplete="off" />
+        </div>
+        <div class="login-error" id="loginError" style="display:none;">
+          <i class="fas fa-exclamation-circle"></i>
+          <span id="loginErrorText">Access denied</span>
+        </div>
+        <button type="submit" class="login-btn" id="loginBtn">
+          <span id="loginBtnText">Login</span>
+          <i class="fas fa-spinner fa-spin" id="loginSpinner" style="display:none;"></i>
+        </button>
+      </form>
+      <div class="login-footer">Powered by Botivate</div>
+    </div>
+  </div>
+
+  <div class="app-container" id="appContainer" style="display:none;">
     <!-- Sidebar for Chat History -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <aside class="sidebar" id="sidebar">
@@ -36,6 +67,9 @@
       <div class="sidebar-footer">
         <button class="cache-info-btn" id="cacheInfoBtn" title="Cache Info">
           <i class="fas fa-database"></i> Cache Stats
+        </button>
+        <button class="logout-btn" id="logoutBtn" title="Logout">
+          <i class="fas fa-sign-out-alt"></i> Logout
         </button>
       </div>
     </aside>

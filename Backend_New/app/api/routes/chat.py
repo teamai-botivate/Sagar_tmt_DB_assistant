@@ -4,7 +4,7 @@ Chat API Routes
 Streaming chat endpoint with LangGraph agent, cache, and context
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, AsyncGenerator
@@ -18,8 +18,9 @@ from app.services.cache_service import query_cache
 from app.services.context_manager import context_manager
 
 from app.core.router import determine_database, get_agent_for_database, get_answer_generator
+from app.core.auth import require_admin
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin)])
 
 class ChatRequest(BaseModel):
     question: str

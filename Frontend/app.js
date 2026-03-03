@@ -1,6 +1,7 @@
 /**
  * Sagar TMT Pipes - Frontend Application with STREAMING
  * Features:
+ * - Admin login authentication (JWT)
  * - Real-time streaming responses (word-by-word)
  * - Status updates during processing
  * - Session management (create, list, switch, delete)
@@ -8,7 +9,146 @@
  * - Query caching visualization
  * - Request cancellation
  */
-const API_BASE_URL = '/api';
+const API_BASE_URL = window.location.protocol === 'file:' 
+  ? 'http://localhost:8000' 
+  : '/api';
+
+// ============================================================================
+// AUTH MODULE
+// ============================================================================
+
+function getAuthToken() {
+  return localStorage.getItem('auth_token');
+}
+
+function getAuthHeaders() {
+  const token = getAuthToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+async function authFetch(url, options = {}) {
+  options.headers = { ...getAuthHeaders(), ...(options.headers || {}) };
+  const response = await fetch(url, options);
+  if (response.status === 401 || response.status === 403) {
+    handleAuthFailure();
+    throw new Error('Authentication required');
+  }
+  return response;
+}
+
+function handleAuthFailure() {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_user');
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('appContainer').style.display = 'none';
+}
+
+async function verifyStoredToken() {
+  const token = getAuthToken();
+  if (!token) return false;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    if (response.ok) {
+      const data = await response.json();
+      return data.valid === true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function initAuth() {
+  const isValid = await verifyStoredToken();
+  if (isValid) {
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'flex';
+    initApp();
+  } else {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('appContainer').style.display = 'none';
+  }
+}
+
+function setupLoginForm() {
+  const loginForm = document.getElementById('loginForm');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginBtnText = document.getElementById('loginBtnText');
+  const loginSpinner = document.getElementById('loginSpinner');
+  const loginError = document.getElementById('loginError');
+  const loginErrorText = document.getElementById('loginErrorText');
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const login = document.getElementById('loginInput').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    
+    if (!login || !password) return;
+
+    // Show loading state
+    loginBtn.disabled = true;
+    loginBtnText.textContent = 'Authenticating...';
+    loginSpinner.style.display = 'inline-block';
+    loginError.style.display = 'none';
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login, password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('auth_user', JSON.stringify(data.user));
+        
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('appContainer').style.display = 'flex';
+        initApp();
+      } else {
+        loginErrorText.textContent = data.detail || 'Access denied. Only authorized admin can access this system.';
+        loginError.style.display = 'flex';
+      }
+    } catch (error) {
+      loginErrorText.textContent = 'Connection error. Please try again.';
+      loginError.style.display = 'flex';
+    } finally {
+      loginBtn.disabled = false;
+      loginBtnText.textContent = 'Login';
+      loginSpinner.style.display = 'none';
+    }
+  });
+}
+
+function setupLogout() {
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      document.getElementById('loginOverlay').style.display = 'flex';
+      document.getElementById('appContainer').style.display = 'none';
+      // Clear form
+      document.getElementById('loginInput').value = '';
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('loginError').style.display = 'none';
+    });
+  }
+}
 
 // DOM Elements
 const chatDisplay = document.getElementById("chatDisplay");
@@ -48,10 +188,16 @@ let abortController = null;
 // ============================================================================
 
 document.addEventListener("DOMContentLoaded", () => {
+  setupLoginForm();
+  setupLogout();
+  initAuth();
+});
+
+function initApp() {
   startTypingAnimation();
   loadSessions();
   setupEventListeners();
-});
+}
 
 function setupEventListeners() {
   sendBtn.addEventListener("click", sendMessage);
@@ -167,7 +313,7 @@ function startTypingAnimation() {
 
 async function loadSessions() {
   try {
-    const response = await fetch(`${API_BASE_URL}/chat/sessions`);
+    const response = await authFetch(`${API_BASE_URL}/chat/sessions`);
     const sessions = await response.json();
 
     renderSessionList(sessions);
@@ -228,7 +374,7 @@ async function selectSession(sessionId) {
 
 async function loadSessionMessages(sessionId) {
   try {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/chat/sessions/${sessionId}/messages`,
     );
     const data = await response.json();
@@ -258,7 +404,7 @@ async function loadSessionMessages(sessionId) {
 
 async function createNewSession() {
   try {
-    const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
+    const response = await authFetch(`${API_BASE_URL}/chat/sessions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -299,7 +445,7 @@ async function deleteSession(sessionId, skipConfirm = false) {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/chat/sessions/${sessionId}`, {
+    const response = await authFetch(`${API_BASE_URL}/chat/sessions/${sessionId}`, {
       method: "DELETE",
     });
 
@@ -345,7 +491,7 @@ async function clearCurrentChat(skipConfirm = false) {
   }
 
   try {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/chat/sessions/${currentSessionId}/clear`,
       {
         method: "POST",
@@ -386,7 +532,7 @@ async function sendMessage() {
   // Create session if none exists
   if (!currentSessionId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
+      const response = await authFetch(`${API_BASE_URL}/chat/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -447,7 +593,7 @@ async function sendMessage() {
     // Use streaming endpoint
     const response = await fetch(`${API_BASE_URL}/chat/stream`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         question,
         session_id: currentSessionId,
@@ -785,7 +931,7 @@ async function showCacheStats() {
   cacheModalBody.innerHTML = "Loading...";
 
   try {
-    const response = await fetch(`${API_BASE_URL}/chat/cache/stats`);
+    const response = await authFetch(`${API_BASE_URL}/chat/cache/stats`);
     const stats = await response.json();
 
     cacheModalBody.innerHTML = `
@@ -826,7 +972,7 @@ async function clearCache() {
   );
   if (!confirmed) return;
   try {
-    const response = await fetch(`${API_BASE_URL}/chat/cache/clear`, {
+    const response = await authFetch(`${API_BASE_URL}/chat/cache/clear`, {
       method: "POST",
     });
     const result = await response.json();

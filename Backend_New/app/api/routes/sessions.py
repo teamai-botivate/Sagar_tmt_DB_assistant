@@ -3,15 +3,16 @@ Session Management Routes
 ==========================
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 import uuid
 
 from app.services.session_manager import session_manager
 from app.services.cache_service import query_cache
+from app.core.auth import require_admin
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin)])
 
 class CreateSessionRequest(BaseModel):
     title: Optional[str] = "New Chat"

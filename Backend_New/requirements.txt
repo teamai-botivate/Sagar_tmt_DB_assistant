@@ -23,3 +23,4 @@ chromadb  # For semantic query caching
 # Utilities
 python-multipart
 tenacity  # For retry logic on API errors
+PyJWT  # For JWT authentication

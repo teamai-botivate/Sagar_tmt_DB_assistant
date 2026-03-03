@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import uvicorn
 
-from app.api.routes import chat, health, sessions
+from app.api.routes import chat, health, sessions, auth
 from app.core.config import settings
 
 # Create FastAPI app
@@ -46,6 +46,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(sessions.router, prefix="/chat/sessions", tags=["sessions"])
 app.include_router(health.router, tags=["health"])
