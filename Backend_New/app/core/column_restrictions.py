@@ -5,7 +5,7 @@ Defines which columns are allowed for each table based on client requirements.
 """
 
 # Allowed columns per table (client requirement)
-# ⚠️ Keep in sync with app/databases/checklist/config.py ALLOWED_COLUMNS
+# ⚠️ Keep in sync with app/domains/hr_operations/config.py ALLOWED_COLUMNS
 ALLOWED_COLUMNS = {
     "checklist": [
         "task_id",

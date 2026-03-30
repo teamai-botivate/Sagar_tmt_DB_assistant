@@ -1,33 +1,25 @@
-# 🗄️ Database Integration Guide (DB Assistant)
+# ⚠️ DEPRECATED — See DOMAIN_INTEGRATION_GUIDE.md
 
-This guide details exactly how to **Add (Integrate)**, **Update**, or **Remove** a database from the generic DB Assistant chatbot system.
+> **This file is deprecated.** The system has migrated to a **Single Database, Multi-Domain Architecture** (v2.2).
+
+## 📄 New Documentation
+
+Please refer to **[DOMAIN_INTEGRATION_GUIDE.md](DOMAIN_INTEGRATION_GUIDE.md)** for:
+- How to add new domains
+- Domain isolation via `ALLOWED_TABLES`
+- Configuration and workflow setup
 
 ---
 
-## 🏗️ Part 1: How to Integrate a NEW Database
+## Architecture Change (v2.2)
 
-### 0. Analyze the Database (Schema Generation)
-Before writing any code, you need to know what is inside the database (tables, columns, types).
+| Before (v2.1) | After (v2.2) |
+|---------------|--------------|
+| Multiple PostgreSQL databases | Single PostgreSQL database |
+| 3 separate connection URLs | 1 shared `DATABASE_URL` |
+| "Database Integration" | "Domain Integration" |
 
-1.  **Create a Schema Folder:**
-    Create a folder for your report: `Database_Schemas/inventory_db/`
-
-2.  **Create the Generator Script:**
-    Copy an existing script (e.g., from `Database_Schemas/checklist/generate_schema.py`) into your new folder.
-    *   **Edit the `DB_URL`**: Update it to your new database connection string.
-    *   **Edit the `DB_NAME`**: Give it a friendly name.
-
-3.  **Run the Script:**
-    ```powershell
-    python Database_Schemas/inventory_db/generate_schema.py
-    ```
-    
-4.  **Use the Output:**
-    *   `schema_report.md`: Read this to pick which tables you want.
-    *   `metadata_analysis.json`: Use the AI-suggested descriptions for your `config.py`.
-
-### 1. Configuration (`.env`)
-Add the connection string to your `.env` file (both in Root and `Backend_New/`).
+All tables now reside in **one database** with logical isolation per domain.
 ```properties
 # Example: Inventory DB
 DB_INVENTORY_URL=postgresql://user:pass@host:5432/inventory_db

@@ -1,93 +1,112 @@
 """
-Central Router
-==============
-Decides which database agent to use for a given user query.
-Currently defaults to 'checklist', but extensible for multi-db.
+Central Router (Domain Router)
+==============================
+Routes user queries to the correct DOMAIN agent.
+
+ARCHITECTURE: Single Database, Multiple Domains
+================================================
+All domains connect to the SAME PostgreSQL database.
+The router determines WHICH DOMAIN should handle the query
+based on semantic analysis of tables/columns.
+
+Domains:
+- hr_operations (checklist): employees, tasks, leaves, visitors, etc.
+- sales_crm (lead_to_order): leads, quotations, sales pipeline
+- maintenance (sagar_db): machine repairs, maintenance tasks
 """
 
 from typing import Literal, Optional
 from langchain_openai import ChatOpenAI
 from app.core.config import settings
 
-# Import the workflow apps from the database modules
-from app.databases.checklist.workflow import workflow_app as checklist_app
+# Import the workflow apps from the domain modules
+from app.domains.hr_operations.workflow import workflow_app as checklist_app
 
 # ============================================================================
-# ROUTER LOGIC (AI-POWERED)
+# ROUTER LOGIC (AI-POWERED DOMAIN ROUTING)
 # ============================================================================
 
 from langchain_core.messages import SystemMessage, HumanMessage
 
 # Initialize lightweight router LLM (cheap & fast model preferred)
 router_llm = ChatOpenAI(
-    model="gpt-4o-mini", # Use fast model for routing
+    model="gpt-4o-mini",  # Use fast model for routing
     temperature=0,
     openai_api_key=settings.OPENAI_API_KEY
 )
 
-# Import Metadata for Dynamic Discovery
-# Import Metadata & Schema for Dynamic Discovery
-from app.databases.checklist.config import ROUTER_METADATA as CHECKLIST_META, SEMANTIC_SCHEMA as CHECKLIST_SCHEMA
-from app.databases.lead_to_order.config import ROUTER_METADATA as L2O_META, DB_SCHEMA as L2O_SCHEMA
-from app.databases.sagar_db.config import ROUTER_METADATA as SAGAR_META, DB_SCHEMA as SAGAR_SCHEMA
+# Import Metadata & Schema for Dynamic Discovery (from domain configs)
+from app.domains.hr_operations.config import ROUTER_METADATA as HR_META, SEMANTIC_SCHEMA as HR_SCHEMA
+from app.domains.sales_crm.config import ROUTER_METADATA as SALES_META, DB_SCHEMA as SALES_SCHEMA
+from app.domains.maintenance.config import ROUTER_METADATA as MAINTENANCE_META, DB_SCHEMA as MAINTENANCE_SCHEMA
 
-# Registry of Available Databases
+# Registry of Available Domains
 # Structure: (Metadata Dict, Schema String)
-REGISTERED_DATABASES = [
-    (CHECKLIST_META, CHECKLIST_SCHEMA),
-    (L2O_META, L2O_SCHEMA),
-    (SAGAR_META, SAGAR_SCHEMA)
+# NOTE: All domains connect to the SAME database - routing is for TABLE isolation
+REGISTERED_DOMAINS = [
+    (HR_META, HR_SCHEMA),
+    (SALES_META, SALES_SCHEMA),
+    (MAINTENANCE_META, MAINTENANCE_SCHEMA)
 ]
+
+# Legacy alias for backward compatibility
+REGISTERED_DATABASES = REGISTERED_DOMAINS
 
 def _build_router_prompt() -> str:
     """
-    Dynamically constructs the router system prompt based on registered databases.
+    Dynamically constructs the router system prompt based on registered domains.
     Enforces Deep Semantic Analysis using actual DB Schemas.
     """
-    db_descriptions = ""
-    for i, (meta, schema) in enumerate(REGISTERED_DATABASES, 1):
-        # We now include the SCHEMA Context
-        # Truncate schema slightly if it's too huge, but usually fine for 4o-mini
+    domain_descriptions = ""
+    for i, (meta, schema) in enumerate(REGISTERED_DOMAINS, 1):
+        # Truncate schema slightly if it's too huge
         safe_schema = schema[:1500] + "..." if len(schema) > 1500 else schema
         
-        db_descriptions += f"""
-{i}. NAME: '{meta["name"]}'
+        domain_descriptions += f"""
+{i}. DOMAIN: '{meta["name"]}'
    DESCRIPTION: {meta["description"]}
-   SCHEMA SNIPPET:
+   ALLOWED TABLES/SCHEMA:
    {safe_schema}
    ------------------------------------------------
 """
 
     return f"""
-You are the **Intelligent Database Router**. Your goal is to route the User's Query to the correct database by analyzing the match between the query and the DATABASE SCHEMA.
+You are the **Intelligent Domain Router**. Your goal is to route the User's Query to the correct DOMAIN by analyzing the match between the query and the DOMAIN SCHEMA.
 
-### AVAILABLE DATABASES (With Schema Context)
-{db_descriptions}
+NOTE: All domains are in the SAME database. Your job is to pick which DOMAIN (set of tables) handles this query.
+
+### AVAILABLE DOMAINS (With Schema Context)
+{domain_descriptions}
 
 ### ROUTING LOGIC (Deep Schema Analysis)
-1. **Analyze:** Look at the user's terms (e.g. "leads", "machine", "task_id").
-2. **Scan Schemas:** Check which database actually contains tables/columns matching those terms.
-   - User asks for "converted leads"? -> Check which schema has "leads" or "conversion" logic.
-   - User asks for "machine repairs"? -> Check which schema has "machine_name" or "maintenance".
+1. **Analyze:** Look at the user's terms (e.g. "leads", "machine", "task_id", "employee", "leave").
+2. **Scan Schemas:** Check which DOMAIN actually contains tables/columns matching those terms.
+   - User asks for "converted leads"? -> Sales CRM domain (lead_to_order)
+   - User asks for "machine repairs"? -> Maintenance domain (sagar_db)
+   - User asks for "pending tasks"? -> HR Operations domain (checklist)
+   - User asks for "leave requests"? -> HR Operations domain (checklist)
 3. **Detect Ambiguity (CRITICAL):**
-   - If a term (like "status" or "tasks") appears conceptually in MULTIPLE schemas, you **MUST** return AMBIGUOUS.
-   - **Construct the Clarification Question based on the specific columns/tables you found.**
+   - If a term (like "status" or "tasks") appears conceptually in MULTIPLE domains, you **MUST** return AMBIGUOUS.
+   - **Construct the Clarification Question based on the specific tables/concepts you found.**
      - BAD: "Did you mean X or Y?"
-     - GOOD: "Did you mean the **Lead Status** (from Sales DB) or the **Repair Status** (from Maintenance DB)?"
+     - GOOD: "Did you mean **Employee Task Status** (from HR domain) or **Machine Repair Status** (from Maintenance domain)?"
 
 ### OUTPUT FORMAT (JSON ONLY)
 Return a valid JSON object.
 {{
-  "database": "Target Database Name" OR "AMBIGUOUS",
+  "database": "Target Domain Name (checklist/lead_to_order/sagar_db)" OR "AMBIGUOUS",
   "reason": "Explain which table/column matched the user's intent.",
-  "clarification_question": "If AMBIGUOUS, ask a specific question comparing the specific tables/concepts found in the schemas."
+  "clarification_question": "If AMBIGUOUS, ask a specific question comparing the domains."
 }}
 """
 
 def determine_database(query: str) -> tuple[str, str, str]:
     """
-    Analyzes the user query using LLM to determine target database.
-    Returns: (db_name, reasoning, clarification_question)
+    Analyzes the user query using LLM to determine target DOMAIN.
+    Returns: (domain_name, reasoning, clarification_question)
+    
+    NOTE: Named 'determine_database' for backward compatibility,
+    but actually determines the DOMAIN (set of tables) to use.
     """
     try:
         # Generate prompt dynamically
@@ -109,34 +128,37 @@ def determine_database(query: str) -> tuple[str, str, str]:
         import json
         data = json.loads(content)
         
-        db_name = data.get("database", "AMBIGUOUS").lower()
+        domain_name = data.get("database", "AMBIGUOUS").lower()
         reason = data.get("reason", "No reason provided.")
-        clarification_question = data.get("clarification_question", "Could you please clarify which database you mean?")
+        clarification_question = data.get("clarification_question", "Could you please clarify which domain you mean?")
         
-        # Check against registered names
-        for meta, schema in REGISTERED_DATABASES:
-            if meta["name"] in db_name:
+        # Check against registered domain names
+        for meta, schema in REGISTERED_DOMAINS:
+            if meta["name"] in domain_name:
                 return meta["name"], reason, ""
             
         return "AMBIGUOUS", reason, clarification_question
         
     except Exception as e:
         print(f"[ROUTER ERROR] Failed to route query: {e}")
-        return "checklist", "Router encountered an error, defaulting to main system.", ""
+        return "checklist", "Router encountered an error, defaulting to HR Operations domain.", ""
 
 def get_agent_for_database(db_name: str = "checklist"):
     """
-    Factory function to return the correct compiled LangGraph agent.
+    Factory function to return the correct compiled LangGraph agent for a domain.
+    
+    NOTE: Named for backward compatibility. All agents connect to SAME database,
+    but each only queries its ALLOWED_TABLES.
     """
     if db_name == "lead_to_order":
-        from app.databases.lead_to_order.workflow import lead_to_order_app
+        from app.domains.sales_crm.workflow import lead_to_order_app
         return lead_to_order_app
         
     if db_name == "sagar_db":
-        from app.databases.sagar_db.workflow import sagar_app
+        from app.domains.maintenance.workflow import sagar_app
         return sagar_app
         
-    # Default
+    # Default: HR Operations domain
     return checklist_app
 
 # ============================================================================
@@ -208,13 +230,13 @@ def get_answer_generator(db_name: str = "checklist"):
     Each DB might have different formatting styles.
     """
     if db_name == "lead_to_order":
-        from app.databases.lead_to_order.prompts import ANSWER_SYNTHESIS_SYSTEM_PROMPT
+        from app.domains.sales_crm.prompts import ANSWER_SYNTHESIS_SYSTEM_PROMPT
         return create_answer_generator(ANSWER_SYNTHESIS_SYSTEM_PROMPT)
     
     if db_name == "sagar_db":
-        from app.databases.sagar_db.prompts import ANSWER_SYNTHESIS_SYSTEM_PROMPT
+        from app.domains.maintenance.prompts import ANSWER_SYNTHESIS_SYSTEM_PROMPT
         return create_answer_generator(ANSWER_SYNTHESIS_SYSTEM_PROMPT)
     
     # Default Checklist
-    from app.databases.checklist.prompts import ANSWER_SYNTHESIS_SYSTEM_PROMPT
+    from app.domains.hr_operations.prompts import ANSWER_SYNTHESIS_SYSTEM_PROMPT
     return create_answer_generator(ANSWER_SYNTHESIS_SYSTEM_PROMPT)

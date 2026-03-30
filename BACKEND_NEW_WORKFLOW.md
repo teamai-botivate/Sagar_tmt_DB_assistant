@@ -1,20 +1,26 @@
 # 🔄 BACKEND_NEW SYSTEM - COMPLETE WORKFLOW GUIDE
 
+**Version:** 2.2  
+**Architecture:** Single Database, Multi-Domain
+
 ## 📋 Table of Contents
 1. [System Overview](#system-overview)
 2. [Architecture Diagram](#architecture-diagram)
-3. [Request Flow](#request-flow)
-4. [Dual-LLM Validation Process](#dual-llm-validation-process)
-5. [Component Details](#component-details)
-6. [Step-by-Step Example](#step-by-step-example)
+3. [Domain Routing](#domain-routing)
+4. [Request Flow](#request-flow)
+5. [Dual-LLM Validation Process](#dual-llm-validation-process)
+6. [Component Details](#component-details)
+7. [Step-by-Step Example](#step-by-step-example)
 
 ---
 
 ## 🎯 System Overview
 
-**Backend_New** is an intelligent SQL query generation system using **Dual-LLM Validation** with **LangGraph** for state management.
+**Backend_New** is an intelligent SQL query generation system using **Dual-LLM Validation** with **LangGraph** for state management. It queries a **single PostgreSQL database** with multiple isolated **domains** (logical table groupings).
 
 ### **Key Features:**
+- ✅ **Single Database, Multi-Domain**: One DB connection, multiple isolated domains
+- ✅ **Domain Routing**: AI routes queries to the correct domain
 - ✅ **Dual-LLM System**: LLM 1 (Generator) + LLM 2 (Validator)
 - ✅ **Semantic Query Cache**: Caches similar queries for speed
 - ✅ **Context-Aware**: Remembers conversation history
@@ -22,13 +28,28 @@
 - ✅ **Security Validation**: Prevents SQL injection
 - ✅ **Session Management**: Multi-user support
 
+### **Domain Structure:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 SINGLE PostgreSQL DATABASE                       │
+├─────────────────────────────────────────────────────────────────┤
+│   ┌─────────────────┐  ┌─────────────────┐  ┌────────────────┐  │
+│   │   HR DOMAIN     │  │  SALES DOMAIN   │  │ MAINTENANCE    │  │
+│   │  (checklist/)   │  │ (lead_to_order/)│  │  (sagar_db/)   │  │
+│   │  18 tables      │  │   4 tables      │  │   1 table      │  │
+│   └─────────────────┘  └─────────────────┘  └────────────────┘  │
+│                                                                  │
+│   Domain isolation via ALLOWED_TABLES per domain module         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ---
 
 ## 🏗️ Architecture Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         FRONTEND (React)                            │
+│                         FRONTEND (HTML/JS)                          │
 │  User types: "Show me pending tasks in PC department this month"    │
 └────────────────────────────┬────────────────────────────────────────┘
                              │
@@ -41,6 +62,24 @@
 │  │  Step 1: Receive user question via POST request            │  │
 │  │  Step 2: Get or create session ID                          │  │
 │  └──────────────────────┬──────────────────────────────────────┘  │
+│                         │                                          │
+│                         ▼                                          │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │           DOMAIN ROUTER (core/router.py)                    │  │
+│  │  🔀 AI-powered routing to correct domain                   │  │
+│  │     - Analyzes query against all domain schemas            │  │
+│  │     - Returns: domain_name, reason, clarification          │  │
+│  │     - Handles ambiguous queries with clarification         │  │
+│  └──────────────────────┬──────────────────────────────────────┘  │
+│                         │                                          │
+│            ┌────────────┼────────────┐                            │
+│            ▼            ▼            ▼                            │
+│     ┌───────────┐ ┌───────────┐ ┌───────────┐                    │
+│     │HR Domain  │ │Sales Domain│ │Maintenance│                    │
+│     │ Agent     │ │   Agent   │ │  Agent    │                    │
+│     └─────┬─────┘ └─────┬─────┘ └─────┬─────┘                    │
+│           │             │             │                            │
+│           └─────────────┼─────────────┘                            │
 │                         │                                          │
 │                         ▼                                          │
 │  ┌─────────────────────────────────────────────────────────────┐  │

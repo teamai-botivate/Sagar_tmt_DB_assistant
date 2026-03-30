@@ -1,0 +1,2722 @@
+{
+  "business_summary": "This database supports a multi-department operations platform for an industrial/manufacturing company (steel/rolling mill context). It combines (1) internal task management (checklists, delegations, ad-hoc assignments, maintenance/repair tasks), (2) plant production/quality operational logs (SMS register, ladle/tundish/patching checklists, hot coil, pipe mill, recoiler), (3) store & purchase workflows (indents, GRN approvals, repair follow-ups), (4) HR/administration workflows (users, leave requests, visitor/gate pass management, travel/ticket booking, hiring requests), (5) sales/CRM processes (leads, enquiries, quotations, enquiry-to-order tracking, client follow-ups), and (6) subscription/document/approval tracking (subscriptions, renewals, payments, document repository). The schema is operationally oriented with many workflow stage dates (planned vs actual), delay metrics, and approval/closure flags; several modules store denormalized text fields (names instead of user IDs) and JSON payloads for line items.",
+  "table_insights": {
+    "enquiry_to_order": {
+      "description": "Operational CRM record representing a sales enquiry and its progression toward an order, including follow-ups, customer feedback, payment/transport terms, and hold/rejection reasons.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "Potential link to enquiries/leads via en_enquiry_no (matches enquiry_no / lead_no patterns in other tables, not enforced)",
+        "Potential link to users via sales_person_name / enquiry_receiver_name / sales_coordinator_name (stored as names; no FK constraint)"
+      ],
+      "important_columns": [
+        "timestamp",
+        "en_enquiry_no",
+        "enquiry_date",
+        "lead_source",
+        "sales_person_name",
+        "company_name",
+        "location",
+        "planned",
+        "actual",
+        "delay",
+        "enquiry_status",
+        "current_stage",
+        "followup_status",
+        "next_call_date",
+        "next_call_time",
+        "is_order_received",
+        "payment_mode",
+        "payment_terms_days",
+        "transport_mode",
+        "po_number",
+        "holding_date",
+        "planned_days"
+      ],
+      "column_descriptions": {
+        "id": "Surrogate identifier for the enquiry-to-order record.",
+        "timestamp": "Row creation/entry timestamp (UTC).",
+        "en_enquiry_no": "Enquiry identifier/number (e.g., EN-01).",
+        "lead_source": "Channel/source of the lead/enquiry (Telephonic, Google, Direct Visit, etc.).",
+        "company_name": "Customer/company name associated with the enquiry.",
+        "phone_number": "Primary phone contact for the enquiry.",
+        "sales_person_name": "Salesperson responsible for the enquiry (stored as name).",
+        "location": "Customer location/address text.",
+        "email": "Customer email.",
+        "enquiry_receiver_name": "Person who initially received the enquiry (stored as name).",
+        "enquiry_date": "Date the enquiry was received.",
+        "enquiry_approach": "How enquiry was received/handled (INWARD, Phone Call, etc.).",
+        "item_qty": "JSON-like text list of requested items and quantities.",
+        "planned": "Planned completion/next milestone date for enquiry stage.",
+        "actual": "Actual completion date for planned milestone.",
+        "delay": "Delay in days between planned and actual (nullable; sometimes computed elsewhere).",
+        "enquiry_status": "Lifecycle status of enquiry (e.g., open).",
+        "what_did_customer_say": "Latest customer feedback/response text.",
+        "current_stage": "Pipeline stage indicator (e.g., order-status).",
+        "followup_status": "Follow-up status label (e.g., Reviewing Quote).",
+        "next_call_date": "Next scheduled follow-up call date.",
+        "next_call_time": "Next scheduled follow-up call time.",
+        "is_order_received": "Whether order has been received from customer.",
+        "status": "Generic status field (may overlap with enquiry_status).",
+        "acceptance_via": "How acceptance was received (email/whatsapp/etc.).",
+        "payment_mode": "Payment method (NEFT/RTGS/etc.).",
+        "payment_terms_days": "Payment terms in days.",
+        "transport_mode": "Transport mode for delivery.",
+        "po_number": "Purchase order number from customer.",
+        "acceptance_file_upload": "Attachment link/path for acceptance/PO file.",
+        "remark": "General remarks for the enquiry.",
+        "if_no_relevant_reason_status": "Reason category when order not received (or status not progressed).",
+        "if_no_relevant_reason_remark": "Free-text reason details when order not received.",
+        "customer_order_hold_reason_category": "Reason category when customer puts order on hold.",
+        "holding_date": "Date when enquiry/order was put on hold.",
+        "hold_remark": "Remarks explaining hold.",
+        "sales_coordinator_name": "Sales coordinator assigned (stored as name).",
+        "planned_days": "Planned number of days for the stage/cycle."
+      }
+    },
+    "delegation": {
+      "description": "Delegated task assignments (typically one-time) with planned/submission dates, reminder/attachment requirements, and completion/extension status.",
+      "primary_keys": [
+        "task_id"
+      ],
+      "foreign_keys": [
+        "Potential link to users via name (assignee) and given_by (assigner) stored as text",
+        "Potential link to delegation_done via task_id (completion log)"
+      ],
+      "important_columns": [
+        "task_id",
+        "created_at",
+        "department",
+        "division",
+        "name",
+        "given_by",
+        "task_description",
+        "frequency",
+        "task_start_date",
+        "planned_date",
+        "submission_date",
+        "status",
+        "delay",
+        "enable_reminder",
+        "require_attachment",
+        "updated_at"
+      ],
+      "column_descriptions": {
+        "task_id": "Unique identifier for the delegated task.",
+        "created_at": "When the delegation record was created.",
+        "department": "Department/area responsible for the task.",
+        "name": "Assignee name (doer) for the task.",
+        "task_description": "Task instructions/details.",
+        "frequency": "Task frequency (e.g., one-time).",
+        "remarks": "Assignee/admin remarks about progress/completion.",
+        "task_start_date": "Scheduled start datetime of the task.",
+        "given_by": "Delegator/assigner name.",
+        "image": "Image/attachment URL related to the task.",
+        "enable_reminder": "Whether reminders are enabled (yes/no).",
+        "require_attachment": "Whether attachment proof is required (yes/no).",
+        "status": "Task status (Done/extend/etc.).",
+        "updated_at": "Last update timestamp.",
+        "planned_date": "Planned completion datetime (often same as start for one-time).",
+        "submission_date": "When the task was submitted/completed.",
+        "color_code_for": "UI color/status coding key (likely for dashboards).",
+        "delay": "Interval difference between planned and submission/completion.",
+        "division": "Business division (COMMERCIAL/STRIP MILL/etc.)."
+      }
+    },
+    "delegation_done": {
+      "description": "Event/log table capturing completion/extension actions for delegated tasks, including reason and evidence.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "task_id -> delegation.task_id (logical, not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "task_id",
+        "created_at",
+        "status",
+        "next_extend_date",
+        "reason",
+        "image_url",
+        "given_by",
+        "name"
+      ],
+      "column_descriptions": {
+        "task_id": "Delegation task identifier being updated.",
+        "created_at": "When this status update was logged.",
+        "status": "Outcome status (done/completed/extend).",
+        "next_extend_date": "New due date if task was extended.",
+        "reason": "Reason for extension or completion notes.",
+        "image_url": "Proof image link.",
+        "name": "Assignee name.",
+        "task_description": "Snapshot of task description at time of update.",
+        "given_by": "Delegator name.",
+        "id": "UUID primary key for the log record."
+      }
+    },
+    "users": {
+      "description": "Application user/employee master for authentication and access control across multiple systems/modules.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "Potential link to leave_request.user_id -> users.id (appears intended)",
+        "Other tables store names/employee_id rather than users.id; join often by employee_id or user_name"
+      ],
+      "important_columns": [
+        "id",
+        "created_at",
+        "user_name",
+        "email_id",
+        "number",
+        "department",
+        "role",
+        "status",
+        "employee_id",
+        "designation",
+        "division",
+        "page_access",
+        "system_access",
+        "subscription_access_system",
+        "session_token",
+        "last_punch_time",
+        "leave_date",
+        "leave_end_date"
+      ],
+      "column_descriptions": {
+        "id": "User numeric identifier.",
+        "created_at": "Account creation timestamp.",
+        "user_name": "Login/display username (sometimes full name).",
+        "password": "Password (appears stored in plain text; security risk).",
+        "email_id": "User email address.",
+        "number": "Mobile number.",
+        "department": "User department name.",
+        "given_by": "Creator/approver name who created the account.",
+        "role": "Role (admin/user).",
+        "status": "Account status (active).",
+        "user_access": "High-level access label (often mirrors department).",
+        "leave_date": "Start timestamp of leave/disablement window.",
+        "remark": "Admin remarks.",
+        "leave_end_date": "End timestamp of leave window.",
+        "employee_id": "HR/employee code (e.g., S00029).",
+        "last_punch_time": "Last attendance punch time.",
+        "last_punch_device": "Device identifier for punching.",
+        "page_access": "Comma-separated allowed pages/routes.",
+        "system_access": "Comma-separated allowed systems/modules.",
+        "subscription_access_system": "JSON config for subscription access (pages/systems).",
+        "user_access1": "Granular physical area access list (comma-separated).",
+        "store_access": "Comma-separated store & purchase permissions.",
+        "emp_image": "Employee image path.",
+        "verify_access": "Approval authority level (hod/manager).",
+        "verify_access_dept": "Department(s) where verify access applies.",
+        "store_role_access": "Store role access (e.g., hod).",
+        "designation": "Job title/designation.",
+        "profile_img": "Profile image URL/path.",
+        "document_img": "Document image URL/path.",
+        "division": "Division (COMMERCIAL/SMS/etc.).",
+        "session_token": "Active session/JWT token."
+      }
+    },
+    "checklist": {
+      "description": "Recurring or scheduled checklist tasks (daily/weekly/monthly etc.) completed by users with optional admin confirmation and attachments.",
+      "primary_keys": [
+        "task_id"
+      ],
+      "foreign_keys": [
+        "Potential link to users via name (assignee) and given_by stored as text"
+      ],
+      "important_columns": [
+        "task_id",
+        "division",
+        "department",
+        "given_by",
+        "name",
+        "task_description",
+        "frequency",
+        "task_start_date",
+        "submission_date",
+        "delay",
+        "enable_reminder",
+        "require_attachment",
+        "status",
+        "admin_done",
+        "user_status_checklist",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "task_id": "Checklist task identifier (appears globally unique).",
+        "department": "Department responsible for the checklist task.",
+        "given_by": "Person who assigned/defined the checklist item.",
+        "name": "Assignee/doer name.",
+        "task_description": "Checklist instruction text.",
+        "enable_reminder": "Reminder enabled (yes/no).",
+        "require_attachment": "Attachment required (yes/no).",
+        "frequency": "Recurrence (daily/weekly/monthly/etc.; inconsistent casing).",
+        "remark": "Remarks or notes for the task instance.",
+        "status": "Whether task marked done/yes (values yes/Yes/no/No).",
+        "image": "Attachment/proof image URL.",
+        "admin_done": "Admin confirmation status (confirmed/no).",
+        "delay": "Interval between planned/scheduled and submission time.",
+        "planned_date": "Planned date/time (stored as TEXT; likely schedule).",
+        "created_at": "Creation timestamp for the checklist record.",
+        "task_start_date": "Scheduled start time for a particular occurrence.",
+        "submission_date": "When it was submitted/completed.",
+        "user_status_checklist": "User submitted status (Yes/No) separate from admin_done.",
+        "division": "Division (PIPE MILL/SMS/etc.)."
+      }
+    },
+    "assign_task": {
+      "description": "General task assignment table (often housekeeping/area tasks) with scheduling, submission, delay, and proof attachments.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "task_id is an external/business identifier; in sample equals id",
+        "Potential link to users via given_by/name/doer_name2 text fields"
+      ],
+      "important_columns": [
+        "id",
+        "task_id",
+        "department",
+        "division",
+        "doer_department",
+        "given_by",
+        "name",
+        "doer_name2",
+        "task_description",
+        "frequency",
+        "task_start_date",
+        "submission_date",
+        "delay",
+        "status",
+        "attachment",
+        "created_at",
+        "hod"
+      ],
+      "column_descriptions": {
+        "id": "Primary key for the task assignment record.",
+        "task_id": "Task identifier (string) used by UI/business; often same as id.",
+        "department": "Physical area/location where task applies (not HR department).",
+        "given_by": "Person assigning the task.",
+        "name": "Role/group name (e.g., Housekeeping Staff).",
+        "task_description": "Description of work to perform.",
+        "remark": "Remark/notes after completion.",
+        "status": "Completion flag (Yes/No).",
+        "image": "Proof image URL.",
+        "attachment": "Attachment confirmation/status field (e.g., confirmed).",
+        "frequency": "Task recurrence (daily/weekly/monthly).",
+        "task_start_date": "Scheduled start time.",
+        "submission_date": "Time task was submitted/completed.",
+        "delay": "Delay in minutes/hours (stored as integer; semantics unclear).",
+        "remainder": "Reminder metadata (spelled remainder).",
+        "created_at": "Record creation time.",
+        "hod": "HOD/approver name for the task/area.",
+        "doer_name2": "Specific doer/worker name.",
+        "division": "Division where task belongs.",
+        "doer_department": "Doer's HR department."
+      }
+    },
+    "maintenance_task_assign": {
+      "description": "Preventive/regular maintenance task assignments for machines/assets, including condition checks (sound/temperature), scheduling, completion, and cost capture.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "serial_no may relate to form_responses.serial_no/tag_no (asset registry), not enforced",
+        "Potential link to users via given_by/doer_name stored as text"
+      ],
+      "important_columns": [
+        "id",
+        "task_no",
+        "serial_no",
+        "machine_name",
+        "machine_department",
+        "machine_area",
+        "division",
+        "given_by",
+        "doer_name",
+        "doer_department",
+        "frequency",
+        "priority",
+        "task_start_date",
+        "actual_date",
+        "delay",
+        "task_status",
+        "maintenance_cost",
+        "enable_reminders",
+        "require_attachment",
+        "image_link",
+        "created_at",
+        "time_stamp"
+      ],
+      "column_descriptions": {
+        "id": "Primary key for maintenance assignment.",
+        "created_at": "Record creation time.",
+        "time_stamp": "Task entry timestamp.",
+        "task_no": "Maintenance task number (business identifier).",
+        "serial_no": "Asset/equipment serial number or tag identifier.",
+        "machine_name": "Machine/asset name.",
+        "given_by": "Person assigning the maintenance task.",
+        "doer_name": "Person responsible to perform maintenance.",
+        "task_type": "Type/category (Maintenance).",
+        "machine_area": "Plant area/unit where machine is located.",
+        "part_name": "Component/part to inspect/maintain.",
+        "need_sound_test": "Whether sound/vibration test required.",
+        "temperature": "Whether temperature check required (Yes/No).",
+        "enable_reminders": "Whether reminders enabled.",
+        "require_attachment": "Whether proof attachment required.",
+        "task_start_date": "Scheduled date to perform task.",
+        "frequency": "Recurrence pattern (daily/weekly/monthly/one-time).",
+        "description": "Work description/instructions.",
+        "priority": "Priority/interval label (e.g., DAILY, Low, Urgent).",
+        "machine_department": "Owning department of the machine.",
+        "actual_date": "Actual completion date.",
+        "delay": "Delay/duration text between scheduled and actual.",
+        "task_status": "Completion status flag (Yes/No).",
+        "remarks": "Remarks after completion.",
+        "sound_status": "Result of sound test (Good/Bad/Need Repair/etc.).",
+        "temperature_status": "Result/status of temperature check.",
+        "image_link": "Proof image URL.",
+        "file_name": "Attached file name.",
+        "file_type": "Attached file type.",
+        "maintenance_cost": "Cost incurred for maintenance (if any).",
+        "doer_department": "Department of doer.",
+        "division": "Division/plant section (PIPE MILL/SMS/STRIP MILL)."
+      }
+    },
+    "repair_system": {
+      "description": "Repair workflow for machines/components including vendor dispatch, transport, billing, staged timelines (planned/actual/delay), and payment reconciliation.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "serial_no may link to form_responses.serial_no/tag_no (asset registry), not enforced",
+        "Potential link to ticket_book / payment_fms (conceptual) via bill fields; not enforced"
+      ],
+      "important_columns": [
+        "id",
+        "time_stamp",
+        "task_no",
+        "serial_no",
+        "machine_name",
+        "machine_part_name",
+        "department",
+        "location",
+        "given_by",
+        "doer_name",
+        "task_start_date",
+        "task_ending_date",
+        "priority",
+        "planned_1",
+        "actual_1",
+        "delay_1",
+        "vendor_name",
+        "lead_time_to_deliver",
+        "transportation_charges",
+        "payment_type",
+        "how_much",
+        "planned_2",
+        "actual_2",
+        "delay_2",
+        "planned_3",
+        "actual_3",
+        "delay_3",
+        "bill_no",
+        "type_of_bill",
+        "total_bill_amount",
+        "to_be_paid_amount",
+        "bill_match",
+        "status",
+        "created_at",
+        "updated_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key for repair record.",
+        "time_stamp": "Repair task initiation timestamp.",
+        "task_no": "Repair task number/business identifier.",
+        "serial_no": "Asset serial/tag number.",
+        "machine_name": "Machine name.",
+        "machine_part_name": "Part/component being repaired.",
+        "given_by": "Requester/assigner.",
+        "doer_name": "Person responsible for coordination/execution.",
+        "problem_with_machine": "Fault/problem description.",
+        "enable_reminders": "Whether reminders enabled.",
+        "require_attachment": "Whether attachments required.",
+        "task_start_date": "Planned start date.",
+        "task_ending_date": "Planned end date.",
+        "priority": "Priority label.",
+        "department": "Department owning the repair.",
+        "location": "Physical location of machine.",
+        "image_link": "Problem image/proof link.",
+        "planned_1": "Stage 1 planned datetime (e.g., dispatch to vendor).",
+        "actual_1": "Stage 1 actual datetime.",
+        "delay_1": "Stage 1 delay value.",
+        "vendor_name": "Repair vendor name.",
+        "lead_time_to_deliver": "Vendor lead time (days).",
+        "transporter_name_1": "Transporter name for dispatch/return.",
+        "transportation_charges": "Transport charges amount.",
+        "weighment_slip": "Weighment slip attachment URL.",
+        "transporting_image_with_machine": "Photo during transportation.",
+        "payment_type": "Payment mode/type for repair/vendor.",
+        "how_much": "Payment amount (possibly advance).",
+        "planned_2": "Stage 2 planned datetime (e.g., repair completion).",
+        "actual_2": "Stage 2 actual datetime.",
+        "delay_2": "Stage 2 delay.",
+        "planned_3": "Stage 3 planned datetime (e.g., receipt/installation).",
+        "actual_3": "Stage 3 actual datetime.",
+        "delay_3": "Stage 3 delay.",
+        "received_quantity": "Quantity received (if parts/material).",
+        "bill_match": "Whether bill matches expectations/PO.",
+        "product_image": "Image of received product/part.",
+        "bill_image": "Bill scan image URL.",
+        "bill_no": "Vendor bill number.",
+        "type_of_bill": "Bill type/category.",
+        "total_bill_amount": "Total billed amount.",
+        "to_be_paid_amount": "Amount remaining to be paid.",
+        "status": "Overall repair status/state.",
+        "created_at": "Row creation timestamp.",
+        "updated_at": "Row update timestamp."
+      }
+    },
+    "indent": {
+      "description": "Store & purchase indent/requisition line items capturing requested material, quantities, approvals, and timing (planned vs actual) including GM approval.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "Potential link to indent_approvals.indent_id -> indent.id",
+        "item_code may link to dropdown.item_code or ERP item master (not present)",
+        "requester_name may link to users (by name/employee_id; not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "sample_timestamp",
+        "form_type",
+        "request_number",
+        "indent_series",
+        "indent_number",
+        "requester_name",
+        "department",
+        "division",
+        "group_name",
+        "item_code",
+        "product_name",
+        "request_qty",
+        "approved_quantity",
+        "uom",
+        "purpose",
+        "cost_location",
+        "planned_1",
+        "actual_1",
+        "time_delay_1",
+        "request_status",
+        "gm_approval",
+        "created_at",
+        "updated_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key for indent line record.",
+        "sample_timestamp": "Timestamp of indent submission/event.",
+        "form_type": "Document type (INDENT or REQUISITION).",
+        "request_number": "Request reference number (e.g., IND12, REQ01).",
+        "indent_series": "Series code for numbering (I1/I4/R4 etc.).",
+        "requester_name": "Employee who requested the item(s).",
+        "department": "Requesting department.",
+        "division": "Division code (PM/SM/CO/RP).",
+        "item_code": "Material/item code.",
+        "product_name": "Material/item description/name.",
+        "request_qty": "Requested quantity.",
+        "uom": "Unit of measure.",
+        "specification": "Technical specification text.",
+        "make": "Preferred make/brand.",
+        "purpose": "Reason/use-case for request.",
+        "cost_location": "Cost center/location.",
+        "planned_1": "Planned date/time for stage 1 (approval/procurement).",
+        "actual_1": "Actual date/time for stage 1 completion.",
+        "time_delay_1": "Delay duration between planned and actual.",
+        "request_status": "Approval status (APPROVED/REJECTED).",
+        "approved_quantity": "Quantity approved.",
+        "created_at": "Row creation time.",
+        "updated_at": "Row update time.",
+        "group_name": "Item group/category.",
+        "indent_number": "Final indent number if processed.",
+        "gm_approval": "GM approval status (APPROVED/REJECTED)."
+      }
+    },
+    "indent_approvals": {
+      "description": "Approval actions for indents, capturing approver, status, timestamp, and remarks.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "indent_id -> indent.id (intended)",
+        "approver_id may link to users.employee_id or users.id (stored as varchar; unclear)"
+      ],
+      "important_columns": [
+        "id",
+        "indent_id",
+        "approver_id",
+        "approval_date",
+        "status",
+        "remarks"
+      ],
+      "column_descriptions": {
+        "id": "Primary key for approval record.",
+        "indent_id": "Indent being approved.",
+        "approver_id": "Identifier of approver (employee code or user id).",
+        "approval_date": "When approval action occurred.",
+        "remarks": "Approver remarks.",
+        "status": "Approval status (e.g., Approved/Rejected/Pending)."
+      }
+    },
+    "store_grn": {
+      "description": "Goods Receipt Note (GRN) header-level tracking with bill workflow flags (sent, admin approved, GM approved, closed).",
+      "primary_keys": [
+        "grn_no"
+      ],
+      "foreign_keys": [
+        "Potential link to vendor/party master (not present)",
+        "Potential link to indent/purchase order modules (not present here)"
+      ],
+      "important_columns": [
+        "grn_no",
+        "grn_date",
+        "party_name",
+        "party_bill_no",
+        "party_bill_amount",
+        "planned_date",
+        "sended_bill",
+        "approved_by_admin",
+        "approved_by_gm",
+        "close_bill"
+      ],
+      "column_descriptions": {
+        "planned_date": "Planned timestamp for GRN/bill processing milestone.",
+        "grn_no": "GRN number (business key).",
+        "grn_date": "Date GRN was created/received.",
+        "party_name": "Vendor/party name.",
+        "party_bill_no": "Vendor bill/invoice number.",
+        "party_bill_amount": "Vendor bill amount.",
+        "sended_bill": "Whether bill was sent to accounts/admin.",
+        "approved_by_admin": "Admin approval flag.",
+        "approved_by_gm": "GM approval flag.",
+        "close_bill": "Whether bill is closed/settled."
+      }
+    },
+    "visitors": {
+      "description": "Visitor gate-pass log for external visitors, including approvals, entry/exit times, and closure state.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "person_to_meet may link to person_to_meet.person_to_meet (text match; not enforced)",
+        "approved_by could link to users.user_name (text match; not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "visitor_name",
+        "mobile_number",
+        "person_to_meet",
+        "date_of_visit",
+        "time_of_entry",
+        "visitor_out_time",
+        "approval_status",
+        "approved_by",
+        "approved_at",
+        "status",
+        "gate_pass_closed",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Visitor record identifier.",
+        "visitor_name": "Name of visitor.",
+        "mobile_number": "Visitor phone number.",
+        "visitor_photo": "Photo URL for visitor identity.",
+        "visitor_address": "Visitor address.",
+        "purpose_of_visit": "Reason/purpose of visit.",
+        "person_to_meet": "Employee/person being visited.",
+        "date_of_visit": "Visit date.",
+        "time_of_entry": "Entry time.",
+        "visitor_out_time": "Exit time (nullable until exit).",
+        "approval_status": "Approval workflow status (pending/approved).",
+        "approved_by": "Approver name.",
+        "approved_at": "Approval timestamp.",
+        "status": "Current presence status (IN/OUT).",
+        "gate_pass_closed": "Whether visitor pass is closed.",
+        "created_at": "Record created timestamp."
+      }
+    },
+    "person_to_meet": {
+      "description": "Master list of employees/persons that visitors can select to meet.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "person_to_meet",
+        "phone",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "person_to_meet": "Person name.",
+        "phone": "Contact phone for the person.",
+        "created_at": "Row creation timestamp."
+      }
+    },
+    "gatepass": {
+      "description": "Employee gate pass / short leave/outpass record (internal), including HOD approval and closure.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "Potential link to users by name/department/employee_id (employee_id not present here; not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "name",
+        "mobile_number",
+        "department",
+        "date_of_leave",
+        "time_of_entry",
+        "hod_approval",
+        "status",
+        "gate_pass_closed",
+        "created_at",
+        "updated_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "name": "Employee name.",
+        "mobile_number": "Employee phone.",
+        "employee_address": "Employee address.",
+        "purpose_of_visit": "Purpose during gate pass.",
+        "reason": "Reason for leaving.",
+        "date_of_leave": "Date of leave/outpass.",
+        "time_of_entry": "Time of entry/exit (field name suggests entry; used for gate pass time).",
+        "hod_approval": "Whether HOD approved.",
+        "status": "Gate pass status (workflow state).",
+        "gate_pass_closed": "Whether gate pass is closed.",
+        "created_at": "Created timestamp.",
+        "updated_at": "Updated timestamp.",
+        "department": "Employee department."
+      }
+    },
+    "leave_request": {
+      "description": "Employee leave application workflow with multi-level approvals (manager/HOD, HR, commercial head).",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "user_id -> users.id (intended; nullable)",
+        "employee_id may match users.employee_id (text match; not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "employee_id",
+        "employee_name",
+        "department",
+        "designation",
+        "from_date",
+        "to_date",
+        "request_status",
+        "approved_by",
+        "approved_by_status",
+        "hr_approval",
+        "approval_hr",
+        "commercial_head_status",
+        "approve_dates",
+        "created_at",
+        "updated_at",
+        "user_id"
+      ],
+      "column_descriptions": {
+        "id": "Leave request identifier.",
+        "employee_id": "Employee code.",
+        "employee_name": "Employee name.",
+        "designation": "Job title.",
+        "department": "Department.",
+        "from_date": "Leave start date.",
+        "to_date": "Leave end date.",
+        "reason": "Leave reason text.",
+        "request_status": "Overall request status (Pending/Approved).",
+        "approved_by": "Approver name (manager/HOD).",
+        "hr_approval": "HR approval status.",
+        "approval_hr": "HR approver employee code.",
+        "approved_by_status": "Approver status value.",
+        "mobilenumber": "Employee mobile.",
+        "urgent_mobilenumber": "Emergency contact.",
+        "created_at": "Created timestamp.",
+        "updated_at": "Updated timestamp.",
+        "commercial_head_status": "Commercial head approval status (if applicable).",
+        "approve_dates": "Date of approval.",
+        "user_id": "Foreign key to users table (sometimes null)."
+      }
+    },
+    "systems": {
+      "description": "Master catalog of systems/modules with URLs for navigation (used for access control and system launching).",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "systems",
+        "link"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "systems": "System/module name.",
+        "link": "Base URL for the system."
+      }
+    },
+    "documents": {
+      "description": "Central document repository/metadata store for company and personal documents with renewal tracking.",
+      "primary_keys": [
+        "document_id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "document_id",
+        "created_at",
+        "serial_no",
+        "document_name",
+        "document_type",
+        "category",
+        "company_department",
+        "person_name",
+        "need_renewal",
+        "renewal_date",
+        "tags",
+        "image",
+        "email",
+        "mobile",
+        "is_deleted"
+      ],
+      "column_descriptions": {
+        "document_id": "Primary key for the document record.",
+        "created_at": "Upload/record creation timestamp.",
+        "serial_no": "Sequential/business serial number for documents.",
+        "document_name": "Document title/name.",
+        "document_type": "Document type (Certificate/Report/Other).",
+        "category": "Company vs Personal document.",
+        "company_department": "Owning company/department name.",
+        "tags": "Array of tags/keywords.",
+        "person_name": "Related entity/person/company name.",
+        "need_renewal": "Whether document requires renewal tracking.",
+        "renewal_date": "Renewal/expiry date to track.",
+        "image": "Document file/image URL.",
+        "email": "Associated email contact.",
+        "mobile": "Associated mobile contact.",
+        "is_deleted": "Soft delete flag."
+      }
+    },
+    "sharedocuments": {
+      "description": "Outbound document sharing log: who shared what document, to which email/number, and by which method/source sheet.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "serial_no may reference documents.serial_no (string vs bigint mismatch; not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "timestamp",
+        "email",
+        "name",
+        "document_name",
+        "document_type",
+        "category",
+        "serial_no",
+        "image",
+        "share_method",
+        "source_sheet",
+        "number"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "timestamp": "When the share occurred.",
+        "email": "Recipient email address.",
+        "name": "Recipient or related person name.",
+        "document_name": "Name of shared document.",
+        "document_type": "Type of shared document.",
+        "category": "Category (Company/Personal/etc.).",
+        "serial_no": "Document serial reference (text).",
+        "image": "Shared document link.",
+        "source_sheet": "Origin/source context (e.g., which module/sheet).",
+        "share_method": "Method of sharing (email/whatsapp/etc.).",
+        "number": "Recipient phone number."
+      }
+    },
+    "subscription": {
+      "description": "Subscription contract tracker for services/software with staged planned/actual dates, approvals, renewal counts, and document copies.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "subscription_no referenced by approval_history, payment_history, subscription_renewals (logical)",
+        "company_name may link to subscription_master.company_name (not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "subscription_no",
+        "company_name",
+        "subscriber_name",
+        "subscription_name",
+        "price",
+        "updated_price",
+        "frequency",
+        "start_date",
+        "end_date",
+        "planned_1",
+        "actual_1",
+        "time_delay_1",
+        "planned_2",
+        "actual_2",
+        "time_delay_2",
+        "planned_3",
+        "actual_3",
+        "time_delay_3",
+        "approval_status",
+        "renewal_status",
+        "renewal_count",
+        "document_copy",
+        "created_at",
+        "updated_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "timestamp": "Record timestamp.",
+        "subscription_no": "Subscription identifier (business key).",
+        "company_name": "Company for which subscription applies.",
+        "subscriber_name": "Requester/owner of subscription.",
+        "subscription_name": "Name of subscription/service.",
+        "price": "Original price.",
+        "frequency": "Billing frequency (Monthly/Quarterly/Annually/Yearly).",
+        "purpose": "Purpose/notes describing subscription.",
+        "planned_1": "Planned date for stage 1 (e.g., request/initial approval).",
+        "actual_1": "Actual date for stage 1.",
+        "time_delay_1": "Delay interval for stage 1.",
+        "renewal_status": "Renewal workflow status.",
+        "renewal_count": "Number of renewals.",
+        "planned_2": "Planned date for stage 2.",
+        "actual_2": "Actual date for stage 2.",
+        "time_delay_2": "Delay interval for stage 2.",
+        "approval_status": "Approval status of subscription.",
+        "planned_3": "Planned date for stage 3.",
+        "actual_3": "Actual date for stage 3.",
+        "time_delay_3": "Delay interval for stage 3.",
+        "start_date": "Subscription start date.",
+        "end_date": "Subscription end/expiry date.",
+        "document_copy": "Attachment URL/path for subscription document.",
+        "updated_price": "Revised price at renewal/negotiation.",
+        "created_at": "Created timestamp.",
+        "updated_at": "Updated timestamp.",
+        "planned2_days": "Configured SLA days for stage 2.",
+        "planned3_days": "Configured SLA days for stage 3.",
+        "planned1_days": "Configured SLA days for stage 1.",
+        "reason_for_renewal": "Reason text for renewal."
+      }
+    },
+    "subscription_renewals": {
+      "description": "Renewal events for subscriptions including approver, renewal status, and price at renewal time.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "subscription_no -> subscription.subscription_no (logical)"
+      ],
+      "important_columns": [
+        "id",
+        "renewal_no",
+        "subscription_no",
+        "renewal_status",
+        "approved_by",
+        "price",
+        "timestamp"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "renewal_no": "Renewal identifier.",
+        "subscription_no": "Subscription being renewed.",
+        "renewal_status": "Renewal state (Approved/Renewed).",
+        "approved_by": "Approver name.",
+        "price": "Renewal price.",
+        "timestamp": "Renewal timestamp."
+      }
+    },
+    "approval_history": {
+      "description": "Approval audit trail for subscription approvals with notes and approver identity.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "subscription_no -> subscription.subscription_no (logical)"
+      ],
+      "important_columns": [
+        "id",
+        "approval_no",
+        "subscription_no",
+        "approval_status",
+        "approved_by",
+        "requested_on",
+        "timestamp",
+        "note"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "approval_no": "Approval transaction number.",
+        "subscription_no": "Related subscription number.",
+        "approval_status": "Approved/Rejected.",
+        "note": "Approval note/remarks.",
+        "approved_by": "Approver name.",
+        "requested_on": "When approval was requested.",
+        "timestamp": "When approval decision was recorded."
+      }
+    },
+    "payment_history": {
+      "description": "Payment transaction log for subscriptions including payment mode, transaction id, and supporting document.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "subscription_no -> subscription.subscription_no (logical)"
+      ],
+      "important_columns": [
+        "id",
+        "subscription_no",
+        "payment_mode",
+        "transaction_id",
+        "start_date",
+        "insurance_document",
+        "timestamp"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "subscription_no": "Subscription being paid for.",
+        "payment_mode": "Mode of payment (UPI/Bank Transfer/Credit Card).",
+        "transaction_id": "Payment reference/transaction id.",
+        "start_date": "Payment effective/start date.",
+        "insurance_document": "Supporting document URL (field name reused).",
+        "timestamp": "Payment timestamp."
+      }
+    },
+    "subscription_master": {
+      "description": "Master configuration for subscription/document categories and renewal filtering by company.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "company_name",
+        "document_type",
+        "category",
+        "renewal_filter"
+      ],
+      "column_descriptions": {
+        "company_name": "Company name for which master settings apply.",
+        "document_type": "Document type classification.",
+        "category": "Category classification (Company/Director/Personal).",
+        "renewal_filter": "Whether to apply renewal filtering.",
+        "id": "Primary key."
+      }
+    },
+    "make_quotation": {
+      "description": "Quotation document header including consignor/consignee details, banking details, line items (JSON), PDF output, and grand total.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "Potential link to clients/client master via company_name/consignee fields (not enforced)",
+        "prepared_by may link to users.user_name (not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "timestamp",
+        "quotation_no",
+        "quotation_date",
+        "prepared_by",
+        "company_name",
+        "contact_name",
+        "contact_no",
+        "consignee_gstin",
+        "consigner_gstin",
+        "items",
+        "grand_total",
+        "pdf_url",
+        "payment_terms",
+        "delivery",
+        "freight",
+        "taxes"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "timestamp": "Record creation timestamp.",
+        "quotation_no": "Quotation number.",
+        "quotation_date": "Quotation date.",
+        "prepared_by": "User/person who prepared quotation.",
+        "consigner_state": "Consignor state.",
+        "reference_name": "Reference/customer reference name.",
+        "consigner_address": "Consignor address.",
+        "consigner_mobile": "Consignor mobile.",
+        "consigner_phone": "Consignor phone.",
+        "consigner_gstin": "Consignor GSTIN.",
+        "consigner_state_code": "Consignor state code.",
+        "company_name": "Company issuing quotation (or selection).",
+        "consignee_address": "Consignee billing address.",
+        "ship_to": "Ship-to address.",
+        "consignee_state": "Consignee state.",
+        "contact_name": "Customer contact person name.",
+        "contact_no": "Customer contact number.",
+        "consignee_gstin": "Customer GSTIN.",
+        "consignee_state_code": "Customer state code.",
+        "msme_no": "MSME registration number.",
+        "validity": "Quotation validity text.",
+        "payment_terms": "Payment terms text.",
+        "delivery": "Delivery terms.",
+        "freight": "Freight terms.",
+        "insurance": "Insurance terms.",
+        "taxes": "Taxes terms.",
+        "notes": "Additional notes.",
+        "account_no": "Bank account number for payment.",
+        "bank_name": "Bank name.",
+        "bank_address": "Bank branch/address.",
+        "ifsc_code": "IFSC code.",
+        "email": "Sender/company email.",
+        "website": "Company website.",
+        "pan": "PAN number.",
+        "items": "JSONB list of quoted items (code/name/qty/gst/rate etc.).",
+        "pdf_url": "Generated quotation PDF URL.",
+        "grand_total": "Total amount for the quotation."
+      }
+    },
+    "clients": {
+      "description": "Client/customer master data for sales with salesperson ownership and client type segmentation.",
+      "primary_keys": [
+        "client_id"
+      ],
+      "foreign_keys": [
+        "sales_person_id likely references a salesperson master/users.id (not provided; not enforced)"
+      ],
+      "important_columns": [
+        "client_id",
+        "client_name",
+        "city",
+        "contact_person",
+        "contact_details",
+        "sales_person_id",
+        "client_type",
+        "status",
+        "created_at",
+        "updated_at"
+      ],
+      "column_descriptions": {
+        "client_id": "Primary key.",
+        "client_name": "Client/customer name.",
+        "city": "Client city.",
+        "contact_person": "Main contact person.",
+        "contact_details": "Phone/email contact details.",
+        "sales_person_id": "Assigned salesperson identifier.",
+        "client_type": "Client segmentation (CRR/NBD/PCRR).",
+        "status": "Client active status.",
+        "created_at": "Created timestamp.",
+        "updated_at": "Updated timestamp."
+      }
+    },
+    "client_followups": {
+      "description": "Sales follow-up call log per client with actual order outcomes and next calling date.",
+      "primary_keys": [
+        "followup_id"
+      ],
+      "foreign_keys": [
+        "client_name may map to clients.client_name (text match; not enforced)",
+        "sales_person may map to users.user_name (text match; not enforced)"
+      ],
+      "important_columns": [
+        "followup_id",
+        "client_name",
+        "sales_person",
+        "date_of_calling",
+        "next_calling_date",
+        "actual_order",
+        "actual_order_date",
+        "created_at",
+        "updated_at"
+      ],
+      "column_descriptions": {
+        "followup_id": "Primary key.",
+        "client_name": "Client name.",
+        "sales_person": "Salesperson name.",
+        "actual_order": "Order value/amount achieved (if any).",
+        "actual_order_date": "Date order was received.",
+        "date_of_calling": "Date of follow-up call.",
+        "next_calling_date": "Scheduled next follow-up date.",
+        "created_at": "Created timestamp.",
+        "updated_at": "Updated timestamp."
+      }
+    },
+    "enquiry_tracker": {
+      "description": "Enquiry follow-up tracker capturing status changes and order receipt outcomes over time (likely an event/history table per enquiry).",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "enquiry_no likely references fms_leads.lead_no or enquiry_to_order.en_enquiry_no (not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "timestamp",
+        "enquiry_no",
+        "enquiry_status",
+        "current_stage",
+        "followup_status",
+        "next_call_date",
+        "next_call_time",
+        "is_order_received_status",
+        "acceptance_via",
+        "payment_mode",
+        "payment_terms_in_days",
+        "transport_mode",
+        "holding_date",
+        "order_no",
+        "party_name",
+        "sales_person_name",
+        "sales_cordinator",
+        "calling_days"
+      ],
+      "column_descriptions": {
+        "id": "Primary key (nullable in schema report; likely generated).",
+        "timestamp": "When tracker entry was recorded.",
+        "enquiry_no": "Enquiry/lead number being tracked.",
+        "enquiry_status": "Status label (hot/open/warm).",
+        "what_did_customer_say": "Customer feedback text.",
+        "current_stage": "Stage in pipeline (order-expected/order-status).",
+        "followup_status": "Follow-up label.",
+        "next_call_date": "Next follow-up date (stored as text).",
+        "next_call_time": "Next follow-up time (stored as text).",
+        "is_order_received_status": "Order receipt status (yes/no/hold).",
+        "acceptance_via": "Acceptance channel.",
+        "payment_mode": "Payment mode.",
+        "payment_terms_in_days": "Payment terms (days).",
+        "transport_mode": "Transport mode.",
+        "remark": "General remarks.",
+        "if_no_relevant_reason_status": "Reason status when order not received.",
+        "if_no_relevant_reason_remark": "Reason remarks.",
+        "customer_order_hold_reason_category": "Hold reason category.",
+        "holding_date": "Hold date (text).",
+        "hold_remark": "Hold remarks.",
+        "sales_cordinator": "Sales coordinator name.",
+        "calling_days": "Number of days between calls or SLA for calling.",
+        "order_no": "Related order number (e.g., DO-01).",
+        "party_name": "Customer/party name.",
+        "sales_person_name": "Salesperson handling enquiry."
+      }
+    },
+    "fms_leads": {
+      "description": "Lead management (CRM) raw lead intake table capturing lead details, planned/actual actions, enquiry conversion, and order receipt data; heavily denormalized with many text fields.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "lead_no used across trackers (enquiry_tracker/leads_tracker); not enforced",
+        "sc_name/salesperson_name/lead_receiver_name are names (potential users mapping)"
+      ],
+      "important_columns": [
+        "id",
+        "lead_no",
+        "created_at",
+        "updated_at",
+        "lead_source",
+        "company_name",
+        "phone_number",
+        "salesperson_name",
+        "status",
+        "enquiry_received_status",
+        "enquiry_received_date",
+        "project_approx_value",
+        "item_qty",
+        "total_qty",
+        "next_call_date",
+        "next_call_time",
+        "enquiry_status",
+        "current_stage",
+        "is_order_received",
+        "payment_mode",
+        "payment_terms_days",
+        "transport_mode",
+        "orderno",
+        "planned_days",
+        "leadscallingdays",
+        "enquirycallingdays"
+      ],
+      "column_descriptions": {
+        "id": "Lead record identifier (text).",
+        "created_at": "Creation timestamp (text).",
+        "updated_at": "Last update timestamp (text).",
+        "lead_no": "Lead number (LD-###).",
+        "lead_receiver_name": "Person who received the lead.",
+        "lead_source": "Lead source channel (Indiamart/Referral/Whatsapp).",
+        "company_name": "Prospect company name.",
+        "phone_number": "Prospect phone number.",
+        "salesperson_name": "Assigned salesperson name.",
+        "location": "Prospect location.",
+        "email_address": "Prospect email.",
+        "state": "Prospect state.",
+        "address": "Prospect address.",
+        "nob": "Nature of business.",
+        "additional_notes": "Additional notes about lead.",
+        "planned": "Planned date for first action (text).",
+        "actual": "Actual date for first action (text).",
+        "delay": "Delay for first action (text).",
+        "status": "Lead temperature/status (Hot etc.).",
+        "customer_feedback": "Feedback text (nullable).",
+        "enquiry_received_status": "Whether enquiry received from lead.",
+        "enquiry_received_date": "Date enquiry was received.",
+        "enquiry_approach": "Approach channel.",
+        "project_approx_value": "Approx project value (text numeric).",
+        "item_qty": "JSON text list of requested items/qty.",
+        "total_qty": "Total quantity (text).",
+        "next_action": "Next action plan.",
+        "next_call_date": "Next call date.",
+        "next_call_time": "Next call time.",
+        "planned1": "Planned date for follow-up stage (text).",
+        "actual1": "Actual date for follow-up stage (text).",
+        "delay1": "Delay for follow-up stage (text).",
+        "enquiry_status": "Enquiry status derived after conversion.",
+        "customer_say": "Customer comment/response.",
+        "current_stage": "Current stage (order-status).",
+        "followup_status": "Follow-up status label.",
+        "followup_next_call_date": "Next call date after follow-up.",
+        "followup_next_call_time": "Next call time after follow-up.",
+        "is_order_received": "Order received flag (text yes/no).",
+        "acceptance_via": "Acceptance method.",
+        "payment_mode": "Payment mode.",
+        "payment_terms_days": "Payment terms days (text).",
+        "transport_mode": "Transport mode.",
+        "remark": "Remarks.",
+        "not_received_reason_status": "Reason category if not received.",
+        "not_received_reason_remark": "Reason text.",
+        "customer_order_hold_category": "Hold category.",
+        "hold_date": "Hold date.",
+        "hold_remark": "Hold remark.",
+        "sc_name": "Sales coordinator name.",
+        "planned_days": "Planned days for SLA.",
+        "leadscallingdays": "Calling cadence for leads.",
+        "enquirycallingdays": "Calling cadence for enquiries.",
+        "orderno": "Associated order number."
+      }
+    },
+    "leads_tracker": {
+      "description": "Lead tracking/history table (appears corrupted/misaligned in sample), intended to store status/stage changes and next call scheduling for leads.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "lead_no intended to reference fms_leads.lead_no (but sample shows mis-mapped columns)"
+      ],
+      "important_columns": [
+        "id",
+        "created_at",
+        "updated_at",
+        "lead_no",
+        "status",
+        "current_stage",
+        "followup_status",
+        "next_call_date",
+        "remark",
+        "calling_days"
+      ],
+      "column_descriptions": {
+        "id": "Tracker record id (text).",
+        "created_at": "Creation time (text).",
+        "updated_at": "Update time (text).",
+        "lead_no": "Lead number being tracked (likely LD-###).",
+        "lead_source": "Lead source channel.",
+        "company_name": "Company name.",
+        "phone_number": "Phone number.",
+        "sales_person_name": "Sales person.",
+        "location": "Location.",
+        "email_address": "Email.",
+        "status": "Lead status/temperature.",
+        "current_stage": "Current pipeline stage.",
+        "followup_status": "Follow-up status.",
+        "next_call_date": "Next scheduled call date.",
+        "remark": "Remarks.",
+        "calling_days": "Call cadence/SLA days."
+      }
+    },
+    "dropdown": {
+      "description": "Centralized dropdown/master values store for CRM/quotation/enquiry forms (acts as configuration/reference data rather than transactional records).",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "created_at",
+        "lead_source",
+        "state",
+        "enquiry_status",
+        "payment_mode",
+        "payment_terms_days",
+        "transport_mode",
+        "hold_reason_category",
+        "not_received_reason_status",
+        "sales_coordinator_name",
+        "item_code",
+        "item_name",
+        "item_category",
+        "prepared_by",
+        "followup_status",
+        "what_did_customer_say"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "created_at": "When dropdown record/config was created.",
+        "lead_receiver_name": "Allowed lead receiver names.",
+        "lead_source": "Allowed lead sources.",
+        "state": "Allowed states.",
+        "quotation_shared_by": "Allowed values for who shared quotation.",
+        "enquiry_status": "Allowed enquiry statuses.",
+        "acceptance_via": "Allowed acceptance channels.",
+        "payment_mode": "Allowed payment modes.",
+        "not_received_reason_status": "Allowed reason categories for not receiving order.",
+        "hold_reason_category": "Allowed hold reason categories.",
+        "consignee_company_name": "Allowed consignee company names.",
+        "consignee_client_name": "Allowed consignee client names.",
+        "consignee_client_contact_no": "Allowed consignee contact numbers.",
+        "consignee_billing_address": "Allowed billing addresses.",
+        "consignee_state": "Allowed consignee states.",
+        "consignee_gstin_uin": "Allowed consignee GSTIN/UIN.",
+        "consignee_state_code": "Allowed consignee state codes.",
+        "sp_name": "Sales person/reference name list.",
+        "reference_contact_no1": "Reference contact numbers.",
+        "sp_state": "Sales party state list.",
+        "sp_state_code": "Sales party state codes.",
+        "sp_pan": "Sales party PAN values.",
+        "consignor_bank_details": "Consignor bank details templates.",
+        "consignor_state_code": "Consignor state codes.",
+        "consignor_gstin": "Consignor GSTIN templates.",
+        "consignor_msme_no": "Consignor MSME numbers.",
+        "lead_assign_to": "Allowed lead assignees.",
+        "requirement_product_category": "Product requirement categories.",
+        "sales_coordinator_name": "Sales coordinator names.",
+        "nob": "Nature of business options.",
+        "enquiry_approach": "Enquiry approach options.",
+        "requirement_product_category_codes": "Product category codes.",
+        "live_company_name": "Live/marketing company names list.",
+        "live_person_name": "Live contact person list.",
+        "live_mobile": "Live contact mobiles list.",
+        "live_email_address": "Live contact emails list.",
+        "live_address": "Live addresses list.",
+        "live_sc_name": "Live sales coordinator names.",
+        "live_source": "Live lead sources.",
+        "direct_company_name": "Direct visit company names.",
+        "direct_client_name": "Direct contact names.",
+        "direct_client_contact_no": "Direct contact numbers.",
+        "direct_state": "Direct state values.",
+        "direct_billing_address": "Direct billing addresses.",
+        "item_code": "Item code list for quotations.",
+        "item_category": "Item category list.",
+        "item_name": "Item name list.",
+        "payment_terms_days": "Payment terms days list.",
+        "transport_mode": "Transport modes list.",
+        "freight_type": "Freight type list.",
+        "payment_terms": "Payment terms text templates.",
+        "enquiry_receiver_name": "Enquiry receiver names.",
+        "enquiry_assign_to": "Enquiry assignees list.",
+        "item_list": "Item list template strings.",
+        "rate": "Default/reference rate.",
+        "description": "Default item description.",
+        "prepared_by": "Prepared-by names list.",
+        "followup_status": "Follow-up statuses list.",
+        "reference_phone_no_2": "Secondary reference phone list.",
+        "what_did_customer_say": "Customer response templates."
+      }
+    },
+    "enq_erp": {
+      "description": "ERP-style enquiry demand capture by item type/size/thickness with quantity and sales executive attribution (structured, analytics-friendly).",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "size/thickness could map to size_master (not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "item_type",
+        "size",
+        "thickness",
+        "enquiry_date",
+        "customer",
+        "quantity",
+        "sales_executive",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "item_type": "Product type (round/square/rectangular).",
+        "size": "Size value.",
+        "thickness": "Thickness numeric value.",
+        "enquiry_date": "Date of enquiry.",
+        "customer": "Customer name.",
+        "quantity": "Requested quantity.",
+        "created_at": "Record created timestamp.",
+        "sales_executive": "Sales executive responsible."
+      }
+    },
+    "size_master": {
+      "description": "Product size master mapping item_type + size + thickness combinations (likely for pipe/sections).",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "item_type",
+        "size",
+        "thickness"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "item_type": "Shape/type category.",
+        "size": "Size code/dimension.",
+        "thickness": "Thickness value."
+      }
+    },
+    "sms_register": {
+      "description": "Steel Melting Shop (SMS) batch/register log capturing heat/batch metadata (sequence, ladle, furnace), temperatures, responsible staff, and photos.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "unique_code and sequence_number relate to downstream tables (qc_lab_samples, hot_coil, pipe_mill, re_coiler) by batch code patterns; not enforced"
+      ],
+      "important_columns": [
+        "id",
+        "sample_timestamp",
+        "sequence_number",
+        "laddle_number",
+        "furnace_number",
+        "sms_head",
+        "shift_incharge",
+        "temperature",
+        "unique_code",
+        "picture",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "sample_timestamp": "When the sample/entry was taken.",
+        "sequence_number": "Sequence code within heat (A/B).",
+        "laddle_number": "Ladle number.",
+        "sms_head": "SMS head/supervisor name.",
+        "furnace_number": "Furnace identifier.",
+        "remarks": "Remarks.",
+        "picture": "Photo URL.",
+        "shift_incharge": "Shift incharge name.",
+        "temperature": "Temperature reading (stored as text).",
+        "unique_code": "Batch/heat short code (e.g., 24B01).",
+        "created_at": "Created timestamp.",
+        "prefilled_link": "Prefilled form link.",
+        "update_link": "Update/edit link.",
+        "melter_name": "Melter/operator name."
+      }
+    },
+    "qc_lab_samples": {
+      "description": "Quality Control lab test results for SMS batches including chemistry values (C, Mn, S, P) and report images.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "sms_batch_code likely references sms_register.unique_code (logical)",
+        "sequence_code likely references sms_register.sequence_number (logical)",
+        "laddle_number likely references sms_register.laddle_number (logical)"
+      ],
+      "important_columns": [
+        "id",
+        "sample_timestamp",
+        "sms_batch_code",
+        "furnace_number",
+        "sequence_code",
+        "laddle_number",
+        "shift_type",
+        "final_c",
+        "final_mn",
+        "final_s",
+        "final_p",
+        "tested_by",
+        "unique_code",
+        "report_picture",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "sample_timestamp": "When sample was tested/recorded.",
+        "sms_batch_code": "SMS batch short code (e.g., 24B01).",
+        "furnace_number": "Furnace identifier.",
+        "sequence_code": "Sequence (A/B).",
+        "laddle_number": "Ladle number.",
+        "shift_type": "Shift (Day/Night).",
+        "final_c": "Final Carbon percentage/value.",
+        "final_mn": "Final Manganese value.",
+        "final_s": "Final Sulfur value.",
+        "final_p": "Final Phosphorus value.",
+        "tested_by": "QC tester name.",
+        "remarks": "Remarks.",
+        "report_picture": "QC report image URL.",
+        "unique_code": "QC report unique code.",
+        "created_at": "Created timestamp."
+      }
+    },
+    "hot_coil": {
+      "description": "Hot coil production/inspection log tied to SMS batch codes, recording temperatures and staff on shift with photo evidence.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "sms_short_code / unique_code likely references sms_register.unique_code (logical)"
+      ],
+      "important_columns": [
+        "id",
+        "sample_timestamp",
+        "sms_short_code",
+        "submission_type",
+        "size",
+        "strand1_temperature",
+        "strand2_temperature",
+        "mill_incharge",
+        "quality_supervisor",
+        "electrical_dc_operator",
+        "shift_supervisor",
+        "unique_code",
+        "created_at",
+        "picture"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "sample_timestamp": "When record was captured.",
+        "sms_short_code": "SMS batch short code.",
+        "submission_type": "Type of submission (Auto/Cold Billet/Hot Coil).",
+        "size": "Size/parameter (text).",
+        "mill_incharge": "Mill incharge name.",
+        "quality_supervisor": "Quality supervisor name.",
+        "picture": "Photo URL.",
+        "electrical_dc_operator": "Electrical/DC operator name.",
+        "remarks": "Remarks.",
+        "strand1_temperature": "Strand 1 temperature reading.",
+        "strand2_temperature": "Strand 2 temperature reading.",
+        "shift_supervisor": "Shift supervisor name.",
+        "unique_code": "Batch code (duplicates sms_short_code).",
+        "created_at": "Created timestamp.",
+        "updated_at": "Updated timestamp.",
+        "update_link": "Update link."
+      }
+    },
+    "re_coiler": {
+      "description": "Recoiler operational log (normalized table) capturing recoiling shift details tied to hot coil batch codes.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "hot_coiler_short_code likely references hot_coil.sms_short_code (logical)",
+        "unique_code likely references pipe_mill.recoiler_short_code or re_coiler.unique_code in other table variants (logical)"
+      ],
+      "important_columns": [
+        "id",
+        "sample_timestamp",
+        "hot_coiler_short_code",
+        "size",
+        "supervisor",
+        "incharge",
+        "contractor",
+        "machine_number",
+        "welder_name",
+        "unique_code",
+        "shift",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "sample_timestamp": "When recoiler record was taken.",
+        "hot_coiler_short_code": "Upstream hot coil batch short code.",
+        "size": "Size/parameter.",
+        "supervisor": "Supervisor name.",
+        "incharge": "Incharge name.",
+        "contractor": "Contractor name.",
+        "machine_number": "Machine identifier.",
+        "welder_name": "Welder name.",
+        "unique_code": "Recoiler unique code (e.g., 24B01B).",
+        "created_at": "Created timestamp.",
+        "shift": "Shift (Day/Night)."
+      }
+    },
+    "re_coile": {
+      "description": "Alternate/older recoiler table variant (note spelling) without shift/updated fields; likely legacy.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "sample_timestamp",
+        "hot_coiler_short_code",
+        "unique_code",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "sample_timestamp": "When record was taken.",
+        "hot_coiler_short_code": "Hot coil batch code.",
+        "size": "Size/parameter.",
+        "supervisor": "Supervisor name.",
+        "incharge": "Incharge name.",
+        "contractor": "Contractor name.",
+        "machine_number": "Machine identifier.",
+        "welder_name": "Welder name.",
+        "unique_code": "Unique code.",
+        "created_at": "Created timestamp."
+      }
+    },
+    "pipe_mill": {
+      "description": "Pipe mill production log capturing production run metadata, equipment checks (turbine/blower), staffing, product attributes, and batch linkage codes.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "recoiler_short_code likely references re_coiler.unique_code (logical)",
+        "unique_code likely derived from sms_register.unique_code + sequence (logical)"
+      ],
+      "important_columns": [
+        "id",
+        "sample_timestamp",
+        "size",
+        "shift",
+        "mill_number",
+        "recoiler_short_code",
+        "unique_code",
+        "production",
+        "time_start",
+        "time_end",
+        "section",
+        "item_type",
+        "thickness",
+        "quality_supervisor",
+        "mill_incharge",
+        "remarks",
+        "picture",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "sample_timestamp": "When the production log was captured.",
+        "size": "Product size (dimension).",
+        "shift": "Shift.",
+        "pipe_mill": "Pipe mill identifier/name (nullable).",
+        "turbuse_name": "Turbine name/identifier.",
+        "turbine_is_ok": "Turbine condition status.",
+        "gas_flow_reading": "Gas flow reading text.",
+        "blower_name": "Blower identifier.",
+        "blower_is_ok": "Blower condition status.",
+        "helper": "Helper name.",
+        "unique_code": "Production batch unique code (e.g., 24B01B01).",
+        "created_at": "Created timestamp.",
+        "jobtime": "Job time duration/label.",
+        "production": "Production quantity (integer).",
+        "time_start": "Start time (text).",
+        "time_end": "End time (text).",
+        "section": "Section identifier/parameter.",
+        "item_type": "Item type/shape (Square).",
+        "thickness": "Thickness value (text).",
+        "picture": "Photo URL.",
+        "recoiler_short_code": "Recoiler upstream code (e.g., 24B01B).",
+        "mill_number": "Mill name/number (PIPE MILL 01).",
+        "quality_supervisor": "Quality supervisor name.",
+        "mill_incharge": "Mill incharge name.",
+        "forman_name": "Foreman name.",
+        "fitter_name": "Fitter name.",
+        "remarks": "Remarks."
+      }
+    },
+    "laddle_checklist": {
+      "description": "Ladle checklist/inspection log for SMS/CCM operations with completion flags for cleaning and equipment readiness, including personnel names and plate life.",
+      "primary_keys": [
+        "unique_code"
+      ],
+      "foreign_keys": [
+        "unique_code may align with sms_register.unique_code or an independent checklist code (format C-XXXX); not enforced"
+      ],
+      "important_columns": [
+        "unique_code",
+        "sample_date",
+        "sample_timestamp",
+        "laddle_number",
+        "plate_life",
+        "slag_cleaning_top",
+        "slag_cleaning_bottom",
+        "nozzle_proper_lancing",
+        "timber_man_name",
+        "laddle_man_name",
+        "laddle_foreman_name",
+        "supervisor_name",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Row id (nullable in schema; not reliable as PK).",
+        "sample_timestamp": "Timestamp when checklist was recorded.",
+        "sample_date": "Checklist date (required).",
+        "laddle_number": "Ladle number.",
+        "slag_cleaning_top": "Top slag cleaning done/not done.",
+        "slag_cleaning_bottom": "Bottom slag cleaning done/not done.",
+        "nozzle_proper_lancing": "Nozzle lancing done/not done.",
+        "pursing_plug_cleaning": "Purging plug cleaning status.",
+        "sly_gate_check": "Slide gate check status.",
+        "nozzle_check_cleaning": "Nozzle check/cleaning status.",
+        "sly_gate_operate": "Slide gate operation check status.",
+        "nfc_proper_heat": "NFC proper heat status.",
+        "nfc_filling_nozzle": "NFC filling nozzle status.",
+        "plate_life": "Plate life count/number.",
+        "timber_man_name": "Timber man/operator name.",
+        "laddle_man_name": "Ladle man/operator name.",
+        "laddle_foreman_name": "Ladle foreman name.",
+        "supervisor_name": "Supervisor name.",
+        "unique_code": "Unique checklist code (business key).",
+        "created_at": "Created timestamp.",
+        "dip_reading": "Dip reading measurement."
+      }
+    },
+    "tundish_checklist": {
+      "description": "Tundish preparation/handover checklist log for continuous casting operations with done/not-done checks and staffing.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "unique_code",
+        "sample_timestamp",
+        "tundish_number",
+        "nozzle_plate_check",
+        "well_block_check",
+        "board_proper_set",
+        "board_sand_filling",
+        "refractory_slag_cleaning",
+        "handover_proper_check",
+        "remarks",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "sample_timestamp": "When checklist was recorded.",
+        "tundish_number": "Tundish identifier.",
+        "nozzle_plate_check": "Nozzle plate check done/not done.",
+        "well_block_check": "Well block check done/not done.",
+        "board_proper_set": "Board properly set check.",
+        "board_sand_filling": "Board sand filling check.",
+        "refractory_slag_cleaning": "Refractory/slag cleaning check.",
+        "tundish_mession_name": "Tundish mission/team name.",
+        "handover_proper_check": "Handover properly done (Yes).",
+        "handover_nozzle_installed": "Nozzle installed at handover (Yes).",
+        "handover_masala_inserted": "Masala inserted at handover (Yes).",
+        "stand1_mould_operator": "Strand 1 mould operator name.",
+        "stand2_mould_operator": "Strand 2 mould operator name.",
+        "timber_man_name": "Timber man name.",
+        "laddle_operator_name": "Ladle operator name.",
+        "shift_incharge_name": "Shift incharge name.",
+        "forman_name": "Foreman name.",
+        "remarks": "Remarks.",
+        "unique_code": "Unique checklist code.",
+        "created_at": "Created timestamp."
+      }
+    },
+    "patching_checklist": {
+      "description": "Furnace/crucible patching checklist and process log including material checks, times, and quality/safety boolean checks with unique code and photos.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "unique_code",
+        "check_date",
+        "furnace_number",
+        "crucible_number",
+        "rm_party_name",
+        "material_type",
+        "patching_start_time",
+        "patching_end_time",
+        "fc_breaking_check",
+        "lining_check",
+        "premix_check",
+        "full_check",
+        "weight_check",
+        "proper_weight_per_check",
+        "mix_check",
+        "checked_by",
+        "p_patching_life",
+        "created_at",
+        "rm_bag_pic"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "check_date": "Date of patching/check.",
+        "furnace_number": "Furnace identifier.",
+        "crucible_number": "Crucible identifier.",
+        "rm_party_name": "Raw material party/vendor.",
+        "material_type": "Material type (Premix/Non Premix).",
+        "rm_bag_pic": "Photo of raw material bag.",
+        "patching_start_time": "Patching process start time.",
+        "patching_end_time": "Patching process end time.",
+        "fc_breaking_check": "FC breaking check boolean.",
+        "lining_check": "Lining check boolean.",
+        "gld_check": "GLD check boolean.",
+        "premix_check": "Premix check boolean.",
+        "bottom_check": "Bottom check boolean.",
+        "full_check": "Full check boolean.",
+        "nali_top_dry_check": "Nali top dry check boolean.",
+        "weight_check": "Weight check boolean.",
+        "proper_weight_per_check": "Proper weight percentage check boolean.",
+        "mix_check": "Mix check boolean.",
+        "checked_by": "Inspector name.",
+        "pprm_party": "Premix/raw material party for patching (text).",
+        "p_patching_life": "Patching life counter/number.",
+        "created_at": "Created timestamp.",
+        "unique_code": "Unique patching checklist code."
+      }
+    },
+    "laddle_return": {
+      "description": "Ladle return log capturing temperatures, operators, and reasons when ladle returns from furnace/CCM, with photos and unique code.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "unique_code",
+        "sample_timestamp",
+        "laddle_return_date",
+        "laddle_return_time",
+        "poring_temperature",
+        "ccm_temperature_before_pursing",
+        "furnace_shift_incharge",
+        "shift_incharge",
+        "laddle_return_reason",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "sample_timestamp": "When record was captured.",
+        "laddle_return_date": "Return date.",
+        "laddle_return_time": "Return time.",
+        "poring_temperature": "Pouring temperature.",
+        "poring_temperature_photo": "Photo of temperature reading.",
+        "furnace_shift_incharge": "Furnace shift incharge name.",
+        "furnace_crane_driver": "Furnace crane driver name.",
+        "ccm_temperature_before_pursing": "CCM temperature before purging.",
+        "ccm_temp_before_pursing_photo": "Photo before purging.",
+        "ccm_temp_after_pursing_photo": "Photo after purging.",
+        "ccm_crane_driver": "CCM crane driver name.",
+        "stand1_mould_operator": "Strand 1 mould operator name.",
+        "stand2_mould_operator": "Strand 2 mould operator name.",
+        "shift_incharge": "Shift incharge name.",
+        "timber_man": "Timber man name.",
+        "operation_incharge": "Operation incharge name.",
+        "laddle_return_reason": "Reason for ladle return.",
+        "unique_code": "Unique return record code.",
+        "created_at": "Created timestamp."
+      }
+    },
+    "projects": {
+      "description": "Project master for civil/engineering projects with schedule and client/location.",
+      "primary_keys": [
+        "project_id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "project_id",
+        "project_name",
+        "location",
+        "client_name",
+        "start_date",
+        "expected_end_date",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "project_id": "Primary key.",
+        "project_name": "Project name.",
+        "location": "Project location.",
+        "client_name": "Client/customer name for project.",
+        "start_date": "Start date.",
+        "expected_end_date": "Expected completion date.",
+        "created_at": "Created timestamp."
+      }
+    },
+    "project_structure": {
+      "description": "Work breakdown structure (WBS) hierarchy for projects (areas/levels) with parent-child relationships.",
+      "primary_keys": [
+        "structure_id"
+      ],
+      "foreign_keys": [
+        "project_id -> projects.project_id (intended)",
+        "parent_id -> project_structure.structure_id (self-referential hierarchy)"
+      ],
+      "important_columns": [
+        "structure_id",
+        "project_id",
+        "parent_id",
+        "level_type",
+        "name"
+      ],
+      "column_descriptions": {
+        "structure_id": "Primary key for structure node.",
+        "project_id": "Project reference.",
+        "parent_id": "Parent structure node id (null for root).",
+        "level_type": "Type of level (Area, Floor, etc.).",
+        "name": "Node name (e.g., First Floor)."
+      }
+    },
+    "activities": {
+      "description": "Project activities/tasks under a structure node with planned quantities, units, due dates, and priority.",
+      "primary_keys": [
+        "activity_id"
+      ],
+      "foreign_keys": [
+        "structure_id -> project_structure.structure_id (intended)"
+      ],
+      "important_columns": [
+        "activity_id",
+        "structure_id",
+        "activity_name",
+        "planned_quantity",
+        "unit",
+        "due_date",
+        "priority"
+      ],
+      "column_descriptions": {
+        "activity_id": "Primary key.",
+        "structure_id": "WBS node reference.",
+        "activity_name": "Activity description.",
+        "planned_quantity": "Planned quantity to complete.",
+        "unit": "Unit of measure (M, M3, MT).",
+        "due_date": "Due date.",
+        "priority": "Priority label."
+      }
+    },
+    "daily_progress": {
+      "description": "Daily progress reporting against project activities including quantity completed, labour count, and remarks.",
+      "primary_keys": [
+        "progress_id"
+      ],
+      "foreign_keys": [
+        "activity_id -> activities.activity_id (intended)"
+      ],
+      "important_columns": [
+        "progress_id",
+        "activity_id",
+        "progress_date",
+        "quantity_completed",
+        "labour_count",
+        "remarks"
+      ],
+      "column_descriptions": {
+        "progress_id": "Primary key.",
+        "activity_id": "Activity reference.",
+        "progress_date": "Date of progress entry.",
+        "quantity_completed": "Quantity completed that day.",
+        "labour_count": "Number of labourers used.",
+        "remarks": "Remarks."
+      }
+    },
+    "materials": {
+      "description": "Material master/inventory snapshot including current stock and minimum threshold for alerts.",
+      "primary_keys": [
+        "material_id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "material_id",
+        "material_name",
+        "unit",
+        "current_stock",
+        "min_threshold"
+      ],
+      "column_descriptions": {
+        "material_id": "Primary key.",
+        "material_name": "Material name.",
+        "unit": "Unit of measure.",
+        "current_stock": "Current stock quantity.",
+        "min_threshold": "Minimum threshold for reorder/alerts."
+      }
+    },
+    "material_inward": {
+      "description": "Inventory inward transactions for materials including supplier and date.",
+      "primary_keys": [
+        "inward_id"
+      ],
+      "foreign_keys": [
+        "material_id -> materials.material_id (intended)"
+      ],
+      "important_columns": [
+        "inward_id",
+        "material_id",
+        "quantity",
+        "inward_date",
+        "supplier",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "inward_id": "Primary key.",
+        "material_id": "Material reference.",
+        "quantity": "Quantity received.",
+        "inward_date": "Date received.",
+        "supplier": "Supplier name.",
+        "remarks": "Remarks.",
+        "created_at": "Created timestamp."
+      }
+    },
+    "material_consumption": {
+      "description": "Material consumption transactions linked to project activities for costing and progress correlation.",
+      "primary_keys": [
+        "consumption_id"
+      ],
+      "foreign_keys": [
+        "material_id -> materials.material_id (intended)",
+        "activity_id -> activities.activity_id (intended)"
+      ],
+      "important_columns": [
+        "consumption_id",
+        "material_id",
+        "activity_id",
+        "quantity",
+        "consumption_date",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "consumption_id": "Primary key.",
+        "material_id": "Material reference.",
+        "activity_id": "Activity reference.",
+        "quantity": "Quantity consumed.",
+        "consumption_date": "Date of consumption.",
+        "remarks": "Remarks.",
+        "created_at": "Created timestamp."
+      }
+    },
+    "locations": {
+      "description": "Master list of physical locations/areas used for housekeeping/tasks and possibly asset placement.",
+      "primary_keys": [
+        "location_id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "location_id",
+        "location"
+      ],
+      "column_descriptions": {
+        "location_id": "Primary key.",
+        "location": "Location/area name."
+      }
+    },
+    "departments": {
+      "description": "Department master list with optional HOD and contact details.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "department",
+        "hod",
+        "mobile_number"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "department": "Department name.",
+        "hod": "Head of Department name.",
+        "mobile_number": "HOD/department contact number.",
+        "given_by": "Who created/entered this department record."
+      }
+    },
+    "form_responses": {
+      "description": "Asset/equipment registry capturing machine metadata (serial, tag, purchase, warranty, maintenance schedule) and document links (manual, bill).",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "department may align with departments.department (text match; not enforced)",
+        "serial_no/tag_no referenced by maintenance_task_assign and repair_system (logical)"
+      ],
+      "important_columns": [
+        "id",
+        "serial_no",
+        "tag_no",
+        "machine_name",
+        "department",
+        "location",
+        "purchase_date",
+        "purchase_price",
+        "vendor",
+        "model_no",
+        "warranty_expiration",
+        "maintenance_schedule",
+        "initial_maintenance_date",
+        "user_allot",
+        "user_manual",
+        "purchase_bill"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "serial_no": "Asset serial number (also used as tag in sample).",
+        "machine_name": "Asset/machine name.",
+        "purchase_date": "Date purchased.",
+        "purchase_price": "Purchase price.",
+        "vendor": "Vendor name.",
+        "model_no": "Model number.",
+        "warranty_expiration": "Warranty expiry date.",
+        "manufacturer": "Manufacturer name.",
+        "maintenance_schedule": "Planned maintenance interval (Daily/Weekly/Monthly etc.).",
+        "department": "Owning department.",
+        "location": "Physical location.",
+        "initial_maintenance_date": "First scheduled maintenance date.",
+        "user_manual": "User manual file URL.",
+        "purchase_bill": "Purchase bill file URL.",
+        "notes": "Additional notes.",
+        "tag_no": "Asset tag number (inventory tag).",
+        "user_allot": "User allotted / assigned user (field values suggest misused)."
+      }
+    },
+    "working_day_calender": {
+      "description": "Calendar table defining working dates with day-of-week labels and week/month numbers (likely for reporting and SLA calculations).",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "working_date",
+        "day",
+        "week_num",
+        "month"
+      ],
+      "column_descriptions": {
+        "working_date": "Calendar date.",
+        "day": "Day of week (Hindi abbreviations).",
+        "week_num": "Week number in year (or fiscal).",
+        "month": "Month number.",
+        "id": "Primary key."
+      }
+    },
+    "request": {
+      "description": "General request workflow table used for travel requests and recruitment/manpower requests (multi-purpose form).",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "employee_code may map to users.employee_id (not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "request_no",
+        "request_status",
+        "person_name",
+        "employee_code",
+        "from_date",
+        "to_date",
+        "type_of_travel",
+        "departure_date",
+        "from_city",
+        "to_city",
+        "reason_for_travel",
+        "requester_name",
+        "requester_department",
+        "request_for",
+        "request_quantity",
+        "created_at",
+        "updated_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "person_name": "Person name (traveler/request subject).",
+        "no_of_person": "Number of persons.",
+        "from_date": "Start date for request window.",
+        "to_date": "End date for request window.",
+        "type_of_travel": "Travel type.",
+        "departure_date": "Departure date.",
+        "reason_for_travel": "Travel reason.",
+        "request_no": "Request number (T-####).",
+        "requester_name": "Requester name.",
+        "requester_designation": "Requester designation.",
+        "requester_department": "Requester department.",
+        "request_for": "Role/position requested (if manpower request).",
+        "request_quantity": "Number of positions/items requested.",
+        "experience": "Experience requirement.",
+        "education": "Education requirement.",
+        "remarks": "Additional requirements/notes.",
+        "request_status": "Status (Open etc.).",
+        "created_at": "Created timestamp.",
+        "updated_at": "Updated timestamp.",
+        "employee_code": "Employee code of requester.",
+        "from_city": "Origin city.",
+        "to_city": "Destination city."
+      }
+    },
+    "ticket_book": {
+      "description": "Ticket/booking expense capture including bill details, amounts, and request vs booked employee codes.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "request_employee_code / booked_employee_code may map to users.employee_id (not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "status",
+        "type_of_bill",
+        "bill_number",
+        "travels_name",
+        "per_ticket_amount",
+        "charges",
+        "total_amount",
+        "person_name",
+        "booked_name",
+        "request_employee_code",
+        "booked_employee_code",
+        "created_at",
+        "updated_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "status": "Booking/payment status.",
+        "type_of_bill": "Bill type.",
+        "bill_number": "Bill/invoice number.",
+        "travels_name": "Travel agency/provider.",
+        "per_ticket_amount": "Per-ticket fare.",
+        "upload_bill_image": "Bill image path/URL.",
+        "total_amount": "Total amount.",
+        "charges": "Additional charges.",
+        "person_name": "Traveler/person name.",
+        "booked_name": "Booked by name.",
+        "created_at": "Created timestamp.",
+        "updated_at": "Updated timestamp.",
+        "request_employee_code": "Employee code requesting booking.",
+        "booked_employee_code": "Employee code who booked."
+      }
+    },
+    "payment_fms": {
+      "description": "Generic payment workflow tracker (FMS) with staged dates and delays, attachments, and payment type; likely used for vendor/internal payments outside subscriptions.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "unique_no",
+        "fms_name",
+        "pay_to",
+        "amount",
+        "status",
+        "payment_type",
+        "planned1",
+        "actual1",
+        "planned2",
+        "actual2",
+        "planned3",
+        "actual3",
+        "delay1",
+        "delay2",
+        "delay3",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "UUID primary key.",
+        "unique_no": "Business unique number for the payment request.",
+        "fms_name": "Module/process name initiating payment.",
+        "pay_to": "Payee name.",
+        "amount": "Amount to pay.",
+        "remarks": "General remarks.",
+        "attachment": "Attachment URL/path.",
+        "created_at": "Created timestamp.",
+        "planned1": "Planned date for stage 1.",
+        "actual1": "Actual date for stage 1.",
+        "status": "Overall payment request status.",
+        "stage_remarks": "Remarks at stage transitions.",
+        "planned2": "Planned date for stage 2.",
+        "actual2": "Actual date for stage 2.",
+        "payment_type": "Payment type/method.",
+        "planned3": "Planned date for stage 3.",
+        "actual3": "Actual date for stage 3.",
+        "delay1": "Delay interval stage 1.",
+        "delay2": "Delay interval stage 2.",
+        "delay3": "Delay interval stage 3."
+      }
+    },
+    "master": {
+      "description": "Legacy/simple task master capturing doer, departments, priority, and task type/status (likely an earlier maintenance/task module).",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "doer_name",
+        "department",
+        "department1",
+        "given_by",
+        "task_status",
+        "task_type",
+        "priority",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "doer_name": "Doer/assignee name.",
+        "department1": "Secondary department/classification.",
+        "given_by": "Assigned by name.",
+        "task_status": "Task status label (e.g., In House).",
+        "task_type": "Task type (e.g., Maintence).",
+        "priority": "Priority (High/Low/Urgent).",
+        "created_at": "Created timestamp.",
+        "department": "Primary department."
+      }
+    },
+    "indent_requests": {
+      "description": "Indent request header table (separate from indent line items) capturing indent number, department, requester, priority, and status.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "indent_no may relate to indent.indent_number (not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "indent_no",
+        "request_date",
+        "department",
+        "requested_by",
+        "status",
+        "priority",
+        "purpose",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "indent_no": "Indent number (business key).",
+        "request_date": "Date/time requested.",
+        "department": "Requesting department.",
+        "requested_by": "Requester name.",
+        "status": "Request status.",
+        "priority": "Priority.",
+        "purpose": "Purpose text.",
+        "created_at": "Created timestamp."
+      }
+    },
+    "indent_items": {
+      "description": "Indent line items for an indent header request (if using indent_requests module), including available stock snapshot.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "indent_id -> indent_requests.id (likely) OR indent.id (possible); ambiguous"
+      ],
+      "important_columns": [
+        "id",
+        "indent_id",
+        "item_name",
+        "quantity",
+        "available_stock"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "indent_id": "Parent indent reference.",
+        "item_name": "Requested item name.",
+        "quantity": "Requested quantity.",
+        "available_stock": "Stock available at request time."
+      }
+    },
+    "repair_followup": {
+      "description": "Repair gate-pass follow-up tracker with multi-stage planned/actual dates and delays for repair lifecycle (likely store/maintenance coordination).",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "gate_pass_date",
+        "gate_pass_no",
+        "department",
+        "party_name",
+        "item_name",
+        "item_code",
+        "qty_issued",
+        "lead_time",
+        "planned1",
+        "actual1",
+        "time_delay1",
+        "stage1_status",
+        "planned2",
+        "actual2",
+        "time_delay2",
+        "stage2_status",
+        "gate_pass_status",
+        "extended_date",
+        "created_at",
+        "updated_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "gate_pass_date": "Date of gate pass issuance.",
+        "gate_pass_no": "Gate pass number.",
+        "department": "Department.",
+        "party_name": "Vendor/party name.",
+        "item_name": "Item sent for repair.",
+        "item_code": "Item code.",
+        "remarks": "Remarks.",
+        "uom": "Unit of measure.",
+        "qty_issued": "Quantity issued to vendor.",
+        "lead_time": "Lead time in days.",
+        "planned1": "Planned stage 1 date.",
+        "actual1": "Actual stage 1 date.",
+        "time_delay1": "Delay stage 1.",
+        "stage1_status": "Status stage 1.",
+        "planned2": "Planned stage 2 date.",
+        "actual2": "Actual stage 2 date.",
+        "time_delay2": "Delay stage 2.",
+        "stage2_status": "Status stage 2.",
+        "gate_pass_status": "Overall gate pass/repair status.",
+        "created_at": "Created timestamp.",
+        "updated_at": "Updated timestamp.",
+        "extended_date": "Extended due/return date."
+      }
+    },
+    "plant_visitor": {
+      "description": "Internal request for bringing visitors to plant (planned date range, counts) with approval workflow fields.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "employee_code/approv_employee_code may map to users.employee_id (not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "person_name",
+        "employee_code",
+        "no_of_person",
+        "from_date",
+        "to_date",
+        "reason_for_visit",
+        "requester_name",
+        "request_for",
+        "request_status",
+        "approv_employee_code",
+        "approve_by_name",
+        "created_at",
+        "updated_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "person_name": "Visitor/person name (or group name).",
+        "employee_code": "Employee code of requester.",
+        "reason_for_visit": "Reason for visit.",
+        "no_of_person": "Number of persons expected.",
+        "from_date": "Visit start date.",
+        "to_date": "Visit end date.",
+        "requester_name": "Requester name.",
+        "request_for": "Visit request for whom/which dept.",
+        "remarks": "Remarks.",
+        "request_status": "Approval status.",
+        "approv_employee_code": "Approver employee code.",
+        "approve_by_name": "Approver name.",
+        "created_at": "Created timestamp.",
+        "updated_at": "Updated timestamp."
+      }
+    },
+    "all_loans": {
+      "description": "Loan master tracker for company loans including EMI schedule, dates, documents, and remarks.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "loan_name",
+        "bank_name",
+        "amount",
+        "emi",
+        "loan_start_date",
+        "loan_end_date",
+        "provided_document_name",
+        "upload_document",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "loan_name": "Loan name/type.",
+        "bank_name": "Bank name.",
+        "amount": "Principal amount.",
+        "emi": "EMI amount.",
+        "loan_start_date": "Loan start date.",
+        "loan_end_date": "Loan end date.",
+        "provided_document_name": "Name of provided document.",
+        "upload_document": "Document URL/path.",
+        "remarks": "Remarks.",
+        "created_at": "Created timestamp."
+      }
+    },
+    "request_forclosure": {
+      "description": "Loan foreclosure request log including requester and request date.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "serial_no may relate to all_loans or collect_noc serial numbers (not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "serial_no",
+        "loan_name",
+        "bank_name",
+        "amount",
+        "emi",
+        "loan_start_date",
+        "loan_end_date",
+        "request_date",
+        "requester_name",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "serial_no": "Business serial number for foreclosure request.",
+        "loan_name": "Loan name.",
+        "bank_name": "Bank name.",
+        "amount": "Amount.",
+        "emi": "EMI.",
+        "loan_start_date": "Start date.",
+        "loan_end_date": "End date.",
+        "request_date": "Foreclosure request date.",
+        "requester_name": "Requester name.",
+        "created_at": "Created timestamp."
+      }
+    },
+    "collect_noc": {
+      "description": "NOC collection tracker for loan closure including closure request date and whether NOC collected.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "important_columns": [
+        "id",
+        "serial_no",
+        "loan_name",
+        "bank_name",
+        "closure_request_date",
+        "collect_noc",
+        "created_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "serial_no": "Business serial number.",
+        "loan_name": "Loan name.",
+        "bank_name": "Bank name.",
+        "loan_start_date": "Loan start date.",
+        "loan_end_date": "Loan end date.",
+        "closure_request_date": "Date closure/NOC requested.",
+        "collect_noc": "Whether NOC collected (boolean).",
+        "created_at": "Created timestamp."
+      }
+    },
+    "resume_request": {
+      "description": "Recruitment candidate pipeline capturing candidate details, resume link, interview planned/actual times, and statuses.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "req_id may map to request.request_no or internal requisition id (not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "candidate_name",
+        "candidate_email",
+        "candidate_mobile",
+        "applied_for_designation",
+        "experience",
+        "previous_company",
+        "previous_salary",
+        "interviewer_planned",
+        "interviewer_actual",
+        "interviewer_status",
+        "candidate_status",
+        "joined_status",
+        "resume",
+        "created_at",
+        "updated_at"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "candidate_name": "Candidate full name.",
+        "candidate_email": "Candidate email.",
+        "candidate_mobile": "Candidate phone.",
+        "applied_for_designation": "Role/designation applied for.",
+        "req_id": "Requisition/request reference id.",
+        "experience": "Years of experience.",
+        "previous_company": "Previous employer.",
+        "previous_salary": "Previous salary amount.",
+        "reason_for_changing": "Reason for job change.",
+        "marital_status": "Marital status.",
+        "reference": "Reference source/person.",
+        "address_present": "Current address.",
+        "resume": "Resume file URL/path.",
+        "interviewer_planned": "Planned interview time.",
+        "interviewer_actual": "Actual interview time.",
+        "interviewer_status": "Interview status (scheduled/completed/etc.).",
+        "candidate_status": "Candidate stage/status.",
+        "joined_status": "Whether candidate joined (Yes/No).",
+        "created_at": "Created timestamp.",
+        "updated_at": "Updated timestamp."
+      }
+    },
+    "login": {
+      "description": "Legacy authentication table (separate from users) storing credentials and basic profile fields; likely deprecated.",
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        "employee_id may map to users.employee_id (not enforced)"
+      ],
+      "important_columns": [
+        "id",
+        "user_name",
+        "password",
+        "role",
+        "status",
+        "department",
+        "email",
+        "number",
+        "employee_id",
+        "create_at",
+        "createdate",
+        "updatedate"
+      ],
+      "column_descriptions": {
+        "id": "Primary key.",
+        "create_at": "Creation timestamp (typo variant).",
+        "user_name": "Username.",
+        "password": "Password (text).",
+        "role": "Role.",
+        "user_id": "User id reference (string).",
+        "email": "Email.",
+        "number": "Phone number.",
+        "department": "Department.",
+        "give_by": "Created by.",
+        "status": "Status.",
+        "user_acess": "Access list/label.",
+        "employee_id": "Employee code.",
+        "createdate": "Created timestamp.",
+        "updatedate": "Updated timestamp."
+      }
+    }
+  },
+  "suggested_semantic_schema": "DOMAIN OVERVIEW\n- This is an enterprise operations database for a manufacturing/steel plant with modules: Task Management (checklists/delegations/assignments), Maintenance & Repairs, Sales CRM (leads/enquiries/quotations), Store & Purchase (indents/GRNs/repair follow-up), Production & Quality logs (SMS/CCM/pipe mill/hot coil/recoiler), HR/Admin (users, leave, visitors/gate pass, travel/tickets), and Subscription/Document management.\n\nENTITY GROUPS & HOW TO QUERY\n\n1) USERS & ACCESS\nTables:\n- users (PK: id)\nKey fields: user_name, employee_id, department, division, role, status.\nNotes: Many operational tables store person names (given_by, doer_name, sales_person_name) as TEXT instead of user_id. Prefer joining by users.employee_id when available; otherwise join by users.user_name with caution.\n\n2) TASK MANAGEMENT (CHECKLIST / DELEGATION / GENERAL TASKS)\nTables:\n- checklist (PK: task_id): recurring checklist tasks; completion in status/user_status_checklist and admin confirmation in admin_done; submission_date and delay for SLA.\n- delegation (PK: task_id): delegated tasks with planned_date/submission_date/status.\n- delegation_done (PK: id, FK logical: task_id -> delegation.task_id): log of status changes, extensions, reasons.\n- assign_task (PK: id): general tasks (often housekeeping) with department=physical location, doer_name2, frequency, submission_date.\nCommon analytics:\n- On-time completion = submission_date <= task_start_date/planned_date (use delay where provided).\n- Completion rate by division/department/given_by/name.\n\n3) MAINTENANCE & REPAIR\nTables:\n- maintenance_task_assign (PK: id): preventive maintenance tasks for machines; fields include task_no, serial_no, task_start_date, actual_date, task_status, maintenance_cost.\n- repair_system (PK: id): repair workflow with vendor, transport, staged planned/actual dates, bill fields.\n- form_responses (PK: id): asset registry; join via serial_no/tag_no to maintenance_task_assign.serial_no and repair_system.serial_no (string match).\nCommon analytics:\n- Mean delay by department/division and priority.\n- Maintenance completion % and cost by machine/department.\n\n4) STORE & PURCHASE\nTables:\n- indent (PK: id): indent/requisition line items; planned_1/actual_1/time_delay_1; request_status and gm_approval.\n- indent_approvals (PK: id, intended FK: indent_id -> indent.id): approval actions.\n- store_grn (PK inferred: grn_no): GRN and bill approval workflow flags.\n- repair_followup (PK: id): gate pass repair follow-up stages.\nCommon analytics:\n- Approval cycle time = actual_1 - planned_1 (or time_delay_1).\n- Rejection rate by department/group_name.\n\n5) SALES / CRM\nTables:\n- fms_leads (PK: id text): lead intake and conversion to enquiry/order; many fields stored as TEXT including dates.\n- enquiry_to_order (PK: id): structured enquiry lifecycle with follow-ups and order terms; item_qty stored as JSON-like TEXT.\n- enquiry_tracker (PK: id): status history per enquiry_no.\n- make_quotation (PK: id): quotation header; items in JSONB; grand_total and pdf_url.\n- clients (PK: client_id) and client_followups (PK: followup_id): client master + follow-up logs.\n- enq_erp (PK: id) and size_master (PK: id): structured demand by size/thickness.\nCommon analytics:\n- Pipeline by enquiry_status/current_stage.\n- Follow-up compliance: next_call_date/time vs current date.\n- Quote totals from make_quotation.grand_total; item-level analysis requires JSONB parsing.\n\n6) PRODUCTION & QUALITY LOGS (SMS/CCM/PIPE MILL)\nTables:\n- sms_register (PK: id): heat/batch log; unique_code is the SMS batch short code.\n- qc_lab_samples (PK: id): chemistry results; join logically on sms_batch_code = sms_register.unique_code and sequence/laddle/furnace when needed.\n- hot_coil (PK: id): hot coil log; sms_short_code/unique_code relate to SMS batch.\n- re_coiler (PK: id) and re_coile (legacy): recoiler log; unique_code like 24B01B.\n- pipe_mill (PK: id): pipe mill runs; unique_code and recoiler_short_code relate to upstream.\n- laddle_checklist (PK suggested: unique_code) and tundish_checklist (PK: id): equipment readiness checklists.\n- patching_checklist (PK: id): furnace patching.\nCommon analytics:\n- Batch traceability: sms_register.unique_code -> qc_lab_samples.sms_batch_code -> hot_coil.sms_short_code -> re_coiler.unique_code -> pipe_mill.recoiler_short_code/unique_code.\n- QC averages by batch/furnace/sequence.\n\n7) HR / ADMIN\nTables:\n- leave_request (PK: id, intended FK user_id -> users.id): leave workflow.\n- visitors (PK: id) and person_to_meet (PK: id): visitor gate pass.\n- gatepass (PK: id): employee outpass.\n- request (PK: id): travel/recruitment requests.\n- ticket_book (PK: id): ticket booking expenses.\n\nQUERYING GUIDELINES FOR TEXT-TO-SQL\n- Prefer timestamp/date columns for filtering: created_at, sample_timestamp, enquiry_date, quotation_date, task_start_date, submission_date.\n- Beware inconsistent data types: many CRM fields are TEXT dates in fms_leads/enquiry_tracker/leads_tracker. Cast when needed (e.g., to_date(next_call_date,'YYYY-MM-DD')).\n- Names are not stable keys. When joining people, use users.employee_id when possible; otherwise join on users.user_name carefully (case/spacing variants).\n- JSON fields: make_quotation.items is JSONB; enquiry_to_order.item_qty is TEXT containing JSON; parsing may require JSON functions and cleanup.\n- Status fields are inconsistent in casing (Yes/yes/Done/done). Normalize with LOWER(status).\n\nCANONICAL DIMENSIONS (recommended for analytics)\n- dim_user (from users)\n- dim_department (from departments)\n- dim_location (from locations)\n- dim_division (from users/division fields)\n- dim_date (from working_day_calender)\n\nCANONICAL FACTS\n- fact_checklist_completion (from checklist)\n- fact_delegation_tasks and fact_delegation_events (delegation + delegation_done)\n- fact_assign_tasks (assign_task)\n- fact_maintenance_tasks (maintenance_task_assign)\n- fact_repairs (repair_system)\n- fact_indents (indent) and fact_indent_approvals (indent_approvals)\n- fact_grn (store_grn)\n- fact_sales_leads (fms_leads) and fact_enquiries (enquiry_to_order/enquiry_tracker)\n- fact_quotation (make_quotation)\n- fact_production_batches (sms_register/hot_coil/re_coiler/pipe_mill) and fact_qc_tests (qc_lab_samples)\n"
+}

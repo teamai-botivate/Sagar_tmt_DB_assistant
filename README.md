@@ -1,106 +1,117 @@
-# 🤖 Intelligent Multi-Database Assistant
+# 🤖 Intelligent Multi-Domain Database Assistant
 
-**Version 2.1 — Deep Schema Aware | Bilingual Support**
+**Version 2.2 — Single Database, Multi-Domain Architecture | Bilingual Support**
 
-An advanced AI-powered system designed to interact with **multiple disparate databases** (PostgreSQL) using natural language. Unlike standard Text-to-SQL bots, this system uses a **Router-Validator Architecture** to understand context, handle ambiguity across different business domains, and self-correct SQL errors.
+An advanced AI-powered system designed to interact with **multiple business domains** within a **single PostgreSQL database** using natural language. The system uses a **Domain Router + Dual-LLM Validation Architecture** to understand context, handle ambiguity across domains, and self-correct SQL errors.
 
-> 🆕 **v2.2 Updates**: Replaced `plant_visitor` with new `visitors` table for Gate Pass tracking, including inline HTML image rendering for visitor photos in the chat UI. Bilingual queries and negation intent handling intact.
+> 🆕 **v2.2 Architecture Update**: Migrated from multiple databases to a **Single Database, Multi-Domain** architecture. All tables now reside in one PostgreSQL instance with domain-based isolation via `ALLOWED_TABLES`.
+
+---
+
+## 🏗️ Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SINGLE PostgreSQL DATABASE                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌─────────────────┐  ┌─────────────────┐  ┌────────────────┐  │
+│   │  HR OPERATIONS  │  │   SALES CRM     │  │  MAINTENANCE   │  │
+│   │    DOMAIN       │  │    DOMAIN       │  │    DOMAIN      │  │
+│   │                 │  │                 │  │                │  │
+│   │ • checklist     │  │ • fms_leads     │  │ • maintenance_ │  │
+│   │ • delegation    │  │ • enquiry_to_   │  │   task_assign  │  │
+│   │ • users         │  │   order         │  │                │  │
+│   │ • leave_request │  │ • make_quotation│  │                │  │
+│   │ • visitors      │  │ • login         │  │                │  │
+│   │ • ticket_book   │  │                 │  │                │  │
+│   │ • request       │  │                 │  │                │  │
+│   │ • resume_request│  │                 │  │                │  │
+│   │ • + 10 more...  │  │                 │  │                │  │
+│   └─────────────────┘  └─────────────────┘  └────────────────┘  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    │  DOMAIN ROUTER    │
+                    │ (AI-Powered)      │
+                    └─────────┬─────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+        HR Agent        Sales Agent    Maintenance Agent
+     (sees 18 tables)  (sees 4 tables)  (sees 1 table)
+```
 
 ---
 
 ## 🌟 Key Features
 
-### 🧠 1. Intelligent "Deep Router"
+### 🧠 1. Intelligent Domain Router
 
-* **Schema-Aware Routing**: The router analyzes the **actual table & column names** of every registered database, not just keywords.
-* **Ambiguity Protocol**: If a user asks "Show me the status" and multiple databases have a "Status" column, the agent **pauses** and asks: *"Did you mean Lead Status or Leave Request Status?"*
-* **Clarification Memory**: Once you clarify (e.g., "The leave one"), it merges this with your original question to execute the correct query.
+* **Schema-Aware Routing**: The router analyzes the **actual table & column names** of each domain, not just keywords.
+* **Single Connection**: All domains share the **same database connection**, reducing complexity.
+* **Ambiguity Protocol**: If a query term appears in multiple domains, the agent **pauses** and asks for clarification.
+* **Clarification Memory**: Once clarified, it merges context with the original question.
 
-### 🛡️ 2. Self-Correcting SQL Agents
+### 🛡️ 2. Self-Correcting SQL Agents (Dual-LLM)
 
 * **Generate-Validate-Regenerate Loop**:
-  1. **Generator (LLM 1)**: Writes the initial SQL query using semantic schema + business rules.
-  2. **Validator (LLM 2)**: Checks the query against column restrictions, intent matching, and LOWER() enforcement.
-  3. **Refiner**: If the Validator rejects it, the Generator automatically rewrites with specific feedback (max 3 attempts).
-* **Ghost Record Filtering**: Automatically ignores incomplete or "test" data (rows with NULL names/dates).
+  1. **Generator (LLM 1)**: Writes SQL using semantic schema + business rules.
+  2. **Validator (LLM 2)**: Checks against column restrictions, intent matching, LOWER() enforcement.
+  3. **Refiner**: Auto-rewrites with feedback (max 3 attempts).
+* **Domain Isolation**: Each agent only sees its `ALLOWED_TABLES`.
 
 ### 🌐 3. Hindi / Hinglish Bilingual Support
 
-* Understands mixed Hindi-English queries like:
+* Understands mixed Hindi-English queries:
   - `"aaj ke pending tasks dikhao"` → Show today's pending tasks
-  - `"jinka leave approve nhi hua unka naam batao"` → Names of employees whose leave was not approved
+  - `"jinka leave approve nhi hua unka naam batao"` → Names with unapproved leave
   - `"sabka travel data do"` → Show everyone's travel data
-* Built-in glossary prevents Hindi words ("datta", "kitne", "dikhao") from being misinterpreted as person names or filter values.
-
-### 📊 4. Supported Integrations
-
-The system integrates **3 distinct business databases** with a total of **13 tables**:
 
 ---
 
-#### 📋 Database 1: **Checklist DB** — Employee & HR Operations
+## 📊 Domain Structure
 
-A comprehensive employee management system covering task tracking, leave management, travel, hiring, and visitor approvals.
+### 📋 Domain 1: **HR Operations** (`checklist`)
 
-| Table              | Purpose                          | Key Columns                                                        |
-| :----------------- | :------------------------------- | :----------------------------------------------------------------- |
-| `checklist`        | Daily/routine tasks              | name, department, task_description, frequency, task_start_date, submission_date, status |
-| `delegation`       | One-time assigned tasks          | name, given_by, department, task_description, planned_date, submission_date |
-| `users`            | Employee info & login            | user_name, department, role, email_id, number, status              |
-| `ticket_book`      | Ticket bookings & travel bills   | person_name, type_of_bill, status, bill_number, total_amount, charges |
-| `leave_request`    | Leave management & approvals     | employee_name, from_date, to_date, reason, request_status, approved_by, hr_approval |
-| `visitors`         | Visitor gate pass tracking       | visitor_name, purpose_of_visit, person_to_meet, date_of_visit, time_of_entry, approval_status |
-| `request`          | Travel requests                  | person_name, type_of_travel, from_city, to_city, departure_date, reason_for_travel |
-| `resume_request`   | Hiring / candidate pipeline      | candidate_name, applied_for_designation, experience, interviewer_status, joined_status |
+Employee & HR management covering tasks, leaves, travel, hiring, and visitors.
 
-**Example queries:**
-- `"aaj ke pending tasks dikhao"` — Today's pending tasks
-- `"jinka leave approve nhi hua unka naam batao"` — Employees with unapproved leave
-- `"total kitne candidates ne apply kiya"` — Total job applicants
+| Table | Purpose | Key Columns |
+|:------|:--------|:------------|
+| `checklist` | Daily/routine tasks | name, department, task_description, submission_date, status |
+| `delegation` | One-time assigned tasks | name, given_by, planned_date, submission_date |
+| `users` | Employee info & login | user_name, department, role, email_id, status |
+| `leave_request` | Leave management | employee_name, from_date, to_date, request_status, approved_by |
+| `visitors` | Visitor gate pass | visitor_name, purpose_of_visit, person_to_meet, approval_status |
+| `ticket_book` | Travel bills | person_name, type_of_bill, total_amount, charges |
+| `request` | Travel requests | person_name, type_of_travel, from_city, to_city |
+| `resume_request` | Hiring pipeline | candidate_name, experience, interviewer_status, joined_status |
+| + 10 more | Finance, subscriptions, documents | ... |
 
----
+### 💼 Domain 2: **Sales CRM** (`lead_to_order`)
 
-#### ⚙️ Database 2: **Sagar DB** — Machine Maintenance & Facility Management
+Full-cycle sales: Lead → Enquiry → Quotation → Order.
 
-A specialized system for tracking machine repairs, maintenance schedules, and technician assignments.
+| Table | Purpose | Key Columns |
+|:------|:--------|:------------|
+| `fms_leads` | Lead tracking | lead_source, status (Hot/Warm/Cold), is_order_received |
+| `enquiry_to_order` | Conversion tracking | timestamp, planned, actual, is_order_received |
+| `make_quotation` | Quotation management | quotation_no, prepared_by, company_name, grand_total |
+| `login` | CRM user accounts | username, password, usertype |
 
-| Table                      | Purpose                     | Key Columns                                              |
-| :------------------------- | :-------------------------- | :------------------------------------------------------- |
-| `maintenance_task_assign`  | Machine maintenance tasks   | Machine_Name, Doer_Name, Task_Start_Date, Actual_Date    |
+### ⚙️ Domain 3: **Maintenance** (`sagar_db`)
 
-**Business rules:**
-- `Actual_Date IS NULL` → Task is **PENDING/OPEN**
+Machine repairs and maintenance tasks.
+
+| Table | Purpose | Key Columns |
+|:------|:--------|:------------|
+| `maintenance_task_assign` | Maintenance tasks | Machine_Name, Doer_Name, Task_Start_Date, Actual_Date |
+
+**Business Rules:**
+- `Actual_Date IS NULL` → Task is **PENDING**
 - `Actual_Date IS NOT NULL` → Task is **COMPLETED**
-- ⚠️ Column names use **Mixed-Case** (e.g., `"Machine_Name"`) — requires quoting in SQL.
-
-**Example queries:**
-- `"Show pending machine repairs"`
-- `"Which technician completed the most tasks this month?"`
-- `"What machines are overdue for maintenance?"`
-
----
-
-#### 💼 Database 3: **Lead-To-Order** — Sales CRM & Pipeline Management
-
-A full-cycle sales system tracking the journey from Lead → Enquiry → Quotation → Order.
-
-| Table              | Purpose                       | Key Columns                                                    |
-| :----------------- | :---------------------------- | :------------------------------------------------------------- |
-| `fms_leads`        | Lead generation & tracking    | created_at, planned, actual, lead_source, status, enquiry_received_status, is_order_received |
-| `enquiry_to_order` | Enquiry-to-order conversion   | timestamp, planned, actual, is_order_received                  |
-| `make_quotation`   | Quotation management          | quotation_no, quotation_date, prepared_by, company_name, contact_name, grand_total, items |
-| `login`            | CRM user accounts             | username, password, usertype                                   |
-
-**Business rules:**
-- `status` values: `'Hot'`, `'Warm'`, `'Cold'` (lead temperature)
-- `lead_source` values: `'Indiamart'`, `'Direct Visit'`, `'Telephonic'`, `'Email'`
-- `is_order_received = 'yes'` → Lead converted to order
-- `grand_total` — Total quotation value (NUMERIC)
-
-**Example queries:**
-- `"How many hot leads came from Indiamart this month?"`
-- `"Show total quotation value by prepared_by"`
-- `"What is the lead conversion rate?"`
+- ⚠️ Uses Mixed-Case columns (requires quoting in SQL)
 
 ---
 
@@ -108,56 +119,37 @@ A full-cycle sales system tracking the journey from Lead → Enquiry → Quotati
 
 ```mermaid
 flowchart TD
-    classDef userNode fill:#1e1b4b,stroke:#6366f1,stroke-width:2px,color:#c7d2fe
-    classDef gatewayNode fill:#0c1e2e,stroke:#06b6d4,stroke-width:2px,color:#a5f3fc
-    classDef routerNode fill:#0c1e2e,stroke:#22d3ee,stroke-width:2.5px,color:#67e8f9
-    classDef dbNode fill:#1c1410,stroke:#fb923c,stroke-width:2px,color:#fdba74
-    classDef agentNode fill:#0f1f1a,stroke:#10b981,stroke-width:2px,color:#6ee7b7
-    classDef errorNode fill:#1f1010,stroke:#ef4444,stroke-width:2px,color:#fca5a5
-    classDef outputNode fill:#1e1b3a,stroke:#8b5cf6,stroke-width:2px,color:#c4b5fd
-    classDef coreNode fill:#0d1a14,stroke:#34d399,stroke-width:2.5px,color:#a7f3d0
-
-    U("👤 User"):::userNode
-    AG("📡 API Gateway"):::gatewayNode
-    RT{"🔀 Deep Schema Router<br/>Intent Classification"}:::routerNode
-    AH["❓ Ambiguity Handler<br/>Clarify & Re-route"]:::errorNode
-
-    CE["🔄 Context Engine<br/>Reformulate Query"]:::agentNode
-    SG["🤖 SQL Generator<br/>LLM 1: Build Query"]:::agentNode
-    SV{"🛡️ Validator<br/>LLM 2: Check & Approve"}:::coreNode
-    EX["⚡ SQL Executor<br/>Run Query"]:::agentNode
-
-    DB1[("📋 Checklist DB<br/>8 Tables")]:::dbNode
-    DB2[("⚙️ Sagar DB<br/>Machine Data")]:::dbNode
-    DB3[("💼 Sales DB<br/>Sales Data")]:::dbNode
-
-    SY["📝 Answer Synthesizer<br/>LLM 3: Generate Response"]:::outputNode
-    UR("👤 User<br/>Receives Result"):::userNode
-
-    U --> AG
-    AG --> RT
-
-    RT -.->|"Ambiguous?"| AH
-    AH -.->|"Clarify"| U
-
-    RT -->|"Employee / HR Intent"| DB1
-    RT -->|"Machine Intent"| DB2
-    RT -->|"Sales Intent"| DB3
-
-    subgraph CORE ["🤖 Autonomous SQL Agent Loop"]
-        direction TB
-        CE --> SG
-        SG --> SV
-        SV -->|"❌ Reject"| SG
-        SV -->|"✅ Approve"| EX
+    U("👤 User")
+    RT{"🔀 Domain Router"}
+    
+    subgraph DB ["📊 Single PostgreSQL Database"]
+        D1["📋 HR Domain<br/>18 Tables"]
+        D2["💼 Sales Domain<br/>4 Tables"]
+        D3["⚙️ Maintenance Domain<br/>1 Table"]
     end
-
-    DB1 --> CE
-    DB2 --> CE
-    DB3 --> CE
-
+    
+    subgraph AGENT ["🤖 Dual-LLM Agent"]
+        SG["SQL Generator<br/>LLM 1"]
+        SV{"Validator<br/>LLM 2"}
+        EX["Executor"]
+    end
+    
+    SY["📝 Answer Synthesizer"]
+    
+    U --> RT
+    RT -->|"HR Intent"| D1
+    RT -->|"Sales Intent"| D2  
+    RT -->|"Maintenance Intent"| D3
+    
+    D1 --> AGENT
+    D2 --> AGENT
+    D3 --> AGENT
+    
+    SG --> SV
+    SV -->|"❌ Reject"| SG
+    SV -->|"✅ Approve"| EX
     EX --> SY
-    SY --> UR
+    SY --> U
 ```
 
 ---
@@ -165,45 +157,34 @@ flowchart TD
 ## 📂 Project Structure
 
 ```text
-DB_Assistant/
+Sagar_tmt_DB_assistant/
 ├── Backend_New/                    # FastAPI Python Backend
 │   ├── main.py                     # Application entry point
 │   ├── .env                        # Environment variables
 │   ├── app/
 │   │   ├── core/
-│   │   │   ├── router.py           # Deep Schema Router (The Brain)
-│   │   │   ├── config.py           # Global settings (ALLOWED_TABLES, etc.)
+│   │   │   ├── router.py           # Domain Router (AI-powered)
+│   │   │   ├── config.py           # Single DATABASE_URL + settings
 │   │   │   ├── security.py         # SQL injection prevention
-│   │   │   └── column_restrictions.py  # Per-table allowed columns
-│   │   ├── databases/              # 🔌 Modular Database Agents
-│   │   │   ├── checklist/          # Employee DB Module (8 tables)
-│   │   │   │   ├── config.py       # Schema, metadata, column restrictions
-│   │   │   │   ├── connection.py   # DB connection & table whitelist
-│   │   │   │   ├── prompts.py      # Generator, Validator, Answer prompts
-│   │   │   │   └── workflow.py     # LangGraph workflow (6 nodes)
-│   │   │   ├── sagar_db/           # Maintenance DB Module
-│   │   │   └── lead_to_order/      # Sales DB Module
-│   │   ├── services/               # Shared Utilities
-│   │   │   ├── sql_agent.py        # Legacy standalone agent
-│   │   │   ├── agent_nodes.py      # Legacy fallback nodes
-│   │   │   ├── db_service.py       # Database operations
+│   │   │   └── auth.py             # Authentication
+│   │   ├── domains/                # 🔌 Domain Modules (share same DB)
+│   │   │   ├── hr_operations/      # HR Operations Domain
+│   │   │   │   ├── config.py       # ALLOWED_TABLES, ALLOWED_COLUMNS
+│   │   │   │   ├── connection.py   # Uses shared DATABASE_URL
+│   │   │   │   ├── prompts.py      # Domain-specific prompts
+│   │   │   │   └── workflow.py     # LangGraph workflow
+│   │   │   ├── sales_crm/          # Sales CRM Domain
+│   │   │   └── maintenance/        # Maintenance Domain
+│   │   ├── services/
 │   │   │   ├── cache_service.py    # Semantic query cache (ChromaDB)
 │   │   │   ├── context_manager.py  # Conversation context
 │   │   │   └── session_manager.py  # Multi-user sessions
-│   │   ├── api/
-│   │   │   └── routes/
-│   │   │       └── chat.py         # Chat streaming endpoint (SSE)
-│   │   └── tools/
-│   │       └── db_inspector.py     # Schema inspection utility
+│   │   └── api/routes/
+│   │       └── chat.py             # Chat streaming endpoint (SSE)
 ├── Frontend/                       # Chat UI (HTML/JS)
-│   └── index.html
-├── Database_Schemas/               # 📊 Auto-Generated Schema Reports
-│   ├── checklist/
-│   │   ├── metadata_analysis.json
-│   │   └── schema_report.md
-│   └── ...
-├── BACKEND_NEW_WORKFLOW.md         # 📘 Detailed workflow documentation
-├── DATABASE_INTEGRATION_GUIDE.md   # 📘 How to add new databases
+├── Database_Schemas/               # Schema documentation
+├── SYSTEM_DOCUMENTATION.md         # Complete system docs
+├── DOMAIN_INTEGRATION_GUIDE.md     # How to add new domains
 └── README.md                       # This file
 ```
 
@@ -214,7 +195,7 @@ DB_Assistant/
 ### Prerequisites
 
 * Python 3.10+
-* PostgreSQL Database(s)
+* PostgreSQL Database (single instance with all tables)
 * OpenAI API Key
 * pip (Python package manager)
 
@@ -224,7 +205,7 @@ DB_Assistant/
 
    ```bash
    git clone <repo_url>
-   cd DB_Assistant
+   cd Sagar_tmt_DB_assistant
    ```
 
 2. **Create Virtual Environment**:
@@ -256,16 +237,21 @@ DB_Assistant/
    Create a `.env` file in `Backend_New/`:
 
    ```properties
-   # LLM
+   # ============================================
+   # SINGLE DATABASE CONNECTION
+   # ============================================
+   # One PostgreSQL database with multiple domains
+   DATABASE_URL=postgresql://user:pass@host:5432/main_database
+
+   # ============================================
+   # LLM Configuration
+   # ============================================
    OPENAI_API_KEY=sk-...
-   LLM_MODEL=gpt-4o
+   LLM_MODEL=gpt-4o-mini
 
-   # Database Connections
-   DATABASE_URL=postgresql://user:pass@host:5432/checklist_db
-   DB_SAGAR_URL=postgresql://user:pass@host:5432/sagar_db
-   DB_L2O_URL=postgresql://user:pass@host:5432/lead_to_order
-
-   # Optional
+   # ============================================
+   # Optional Tuning
+   # ============================================
    MAX_VALIDATION_ATTEMPTS=3
    CONFIDENCE_THRESHOLD=70
    CACHE_SIMILARITY_THRESHOLD=0.92
@@ -282,65 +268,127 @@ DB_Assistant/
 
 6. **Open the Frontend**:
 
-   Open `Frontend/index.html` in your browser or serve it with any static file server.
+   Open `Frontend/index.html` in your browser or navigate to `http://localhost:8000/app`.
 
 ---
 
 ## 🔧 Developer Guide
 
-### How to Add a New Database
+### How to Add a New Domain
 
-1. **Generate Schema**: Use `app/tools/db_inspector.py` to inspect your new database.
-2. **Create Module**: Create a folder under `app/databases/your_new_db/` with:
-   - `config.py` — `ROUTER_METADATA`, `ALLOWED_COLUMNS`, `SEMANTIC_SCHEMA`
-   - `connection.py` — DB connection + `RestrictedSQLDatabase`
+Since all domains share the same database, adding a new domain only requires:
+
+1. **Create Domain Module**: Create a folder under `app/domains/your_new_domain/` with:
+   - `config.py` — `ROUTER_METADATA`, `ALLOWED_TABLES`, `ALLOWED_COLUMNS`, `SEMANTIC_SCHEMA`
+   - `connection.py` — Uses shared `settings.DATABASE_URL` + `RestrictedSQLDatabase`
    - `prompts.py` — Generator, Validator, and Answer Synthesis prompts
    - `workflow.py` — LangGraph agent workflow
-3. **Register**: Import your metadata in `app/core/router.py`.
-4. **Update Global Config**: Add tables to `app/core/config.py` → `ALLOWED_TABLES` if needed.
 
-See `DATABASE_INTEGRATION_GUIDE.md` for a full step-by-step walkthrough.
+2. **Register in Router**: Import your metadata in `app/core/router.py`:
+   ```python
+   from app.databases.your_new_domain.config import ROUTER_METADATA, SEMANTIC_SCHEMA
+   
+   REGISTERED_DOMAINS = [
+       ...
+       (YOUR_DOMAIN_META, YOUR_DOMAIN_SCHEMA),
+   ]
+   ```
 
-### Adding New Tables to an Existing Database
+3. **Connection Template** (`connection.py`):
+   ```python
+   from app.core.config import settings
+   
+   def get_db_instance():
+       return RestrictedSQLDatabase(
+           connection_string=settings.DATABASE_URL,
+           schema="public",
+           include_tables=ALLOWED_TABLES,
+       )
+   ```
 
-1. Add to `ALLOWED_TABLES` in `app/core/config.py`
-2. Add to `ALLOWED_COLUMNS` in both `app/databases/<db>/config.py` and `app/core/column_restrictions.py`
-3. Add to `SEMANTIC_SCHEMA` in `app/databases/<db>/config.py`
-4. Update `target_tables` in `app/databases/<db>/workflow.py`
-5. Update `connection.py` to include in `RestrictedSQLDatabase`
-6. Update prompts in `app/databases/<db>/prompts.py`
-7. Update legacy code in `app/services/sql_agent.py` and `app/services/agent_nodes.py`
+See `DOMAIN_INTEGRATION_GUIDE.md` for a full step-by-step walkthrough.
+
+### Adding New Tables to an Existing Domain
+
+1. Add to `ALLOWED_TABLES` in `app/domains/<domain>/config.py`
+2. Add to `ALLOWED_COLUMNS` in `app/domains/<domain>/config.py`
+3. Add to `SEMANTIC_SCHEMA` in `app/domains/<domain>/config.py`
+4. Update `target_tables` in `app/domains/<domain>/workflow.py`
+5. Update prompts in `app/domains/<domain>/prompts.py`
+
+### Key Concept: Domain Isolation
+
+Each domain module defines its own `ALLOWED_TABLES`:
+
+```python
+# HR Domain (checklist/config.py)
+ALLOWED_TABLES = ["checklist", "delegation", "users", "leave_request", ...]
+
+# Sales Domain (lead_to_order/config.py)
+ALLOWED_TABLES = ["fms_leads", "enquiry_to_order", "make_quotation", "login"]
+
+# Maintenance Domain (sagar_db/config.py)
+ALLOWED_TABLES = ["maintenance_task_assign"]
+```
+
+The `RestrictedSQLDatabase` class filters the schema to only show allowed tables, even though all tables exist in the same database.
 
 ### Troubleshooting
 
 | Issue | Cause | Fix |
 |---|---|---|
 | "Ambiguous Query" loop | Router metadata descriptions too similar | Make `ROUTER_METADATA` descriptions more distinct |
-| "Column does not exist" | PostgreSQL mixed-case columns | Add quotes in config (e.g., `"TaskID"`) |
+| "Column does not exist" | PostgreSQL mixed-case columns | Add quotes in config (e.g., `"Machine_Name"`) |
+| Agent sees wrong tables | `ALLOWED_TABLES` not updated | Add table name to domain's config.py |
 | "No result returned" | Empty query results or graph error | Check debug logs; empty results now handled gracefully |
 | Hindi words used as filter | Glossary incomplete | Add new words to HINDI GLOSSARY in prompts.py |
 | Excessive validation loops | Validator too strict | Review validator prompt strictness settings |
 
 ---
 
-## 🆕 Recent Changes (v2.1)
+## 🆕 Changelog
 
-### New Tables Integrated
+### v2.2 — Single Database, Multi-Domain Architecture (Current)
+
+**Architecture Changes:**
+- ✅ Migrated from 3 separate databases to **single PostgreSQL database**
+- ✅ All domain modules now use shared `DATABASE_URL` connection
+- ✅ Domain isolation via `ALLOWED_TABLES` per domain module
+- ✅ Simplified configuration — one connection string instead of three
+- ✅ Updated terminology: "databases" → "domains" throughout codebase
+
+**Files Modified:**
+- `Backend_New/app/core/config.py` — Single `DATABASE_URL` with legacy aliases
+- `Backend_New/app/core/router.py` — Renamed to `REGISTERED_DOMAINS`
+- `Backend_New/app/domains/*/connection.py` — All use `settings.DATABASE_URL`
+- `Backend_New/.env.example` — New single-database configuration
+
+### v2.1 — HR Module Expansion
+
+**New Tables Integrated:**
 - `ticket_book` — Ticket bookings & travel bills
 - `leave_request` — Employee leave management with multi-level approval
-- `visitors` — Visitor gate pass tracking with inline UI image rendering!
+- `visitors` — Visitor gate pass tracking with inline UI image rendering
 - `request` — Employee travel requests
 - `resume_request` — Candidate resume intake & hiring pipeline
 
-### Improvements Applied
-1. **Empty Result Handling** — Empty SQL results now generate AI-powered friendly messages instead of raw errors.
-2. **Hindi/Hinglish Glossary** — Bilingual word recognition in prompts prevents misinterpretation of Hindi words as database values.
-3. **Negation-Aware Intent Rules** — Explicit rules for "not approved", "not completed", "not joined" mapped to correct SQL logic.
-4. **Column-Level Security** — Each table has explicitly defined allowed and forbidden columns.
-5. **LOWER() Enforcement** — All string comparisons use case-insensitive matching across all 8 tables.
+**Improvements:**
+- Empty Result Handling — Empty SQL results now generate AI-powered friendly messages
+- Hindi/Hinglish Glossary — Bilingual word recognition in prompts
+- Negation-Aware Intent Rules — "not approved", "not completed" mapped correctly
+- Column-Level Security — Each table has explicit allowed/forbidden columns
+- LOWER() Enforcement — Case-insensitive matching across all tables
 
 ---
 
-### 📞 Support
+## 📞 Support
 
 For bugs or feature requests, check the debug logs in the terminal output or contact the development team.
+
+---
+
+## 📝 Related Documentation
+
+- **[SYSTEM_DOCUMENTATION.md](SYSTEM_DOCUMENTATION.md)** — Complete system architecture and workflow diagrams
+- **[DOMAIN_INTEGRATION_GUIDE.md](DOMAIN_INTEGRATION_GUIDE.md)** — Step-by-step guide to add new domains
+- **[BACKEND_NEW_WORKFLOW.md](BACKEND_NEW_WORKFLOW.md)** — LangGraph workflow details
