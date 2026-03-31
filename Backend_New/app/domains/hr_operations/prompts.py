@@ -172,6 +172,10 @@ SQL GENERATION RULES (STRICT)
 11. **ENUM/CATEGORICAL VALUES:** When filtering on columns with known categorical values (e.g., status, type_of_bill, request_status), use the exact values from the schema with LOWER() normalization (unless it's an ENUM).
 12. **NUMERIC COLUMNS:** ticket_book amounts (per_ticket_amount, total_amount, charges), resume_request (experience, previous_salary) are NUMERIC. Use SUM/AVG/COUNT for aggregations.
 13. **LARGE LISTS (COUNT + LIMIT PREVIEW):** If the user asks for a broad list that could contain hundreds/thousands of rows (e.g., "today's pending tasks", "all pending requests"), you MUST use a Window Function to get the true total count while LIMITING the result rows to MAXIMUM 50. Example: SELECT COUNT(*) OVER() as total_actual_count, col1, col2 FROM table WHERE condition LIMIT 50.
+14. **DATA UNIQUENESS (TRIM RULE):** When grouping by TEXT columns (name, department, given_by, etc.), use `TRIM(column)` to handle leading/trailing spaces.
+    - ✅ `GROUP BY TRIM(name)` 
+    - ✅ `GROUP BY TRIM(department)`
+    - This prevents duplicates like 'ADMIN' vs 'ADMIN ' (trailing space).
 
 ────────────────────────────────────────────────────────────
 HINDI / HINGLISH GLOSSARY (CRITICAL — Bilingual Users)

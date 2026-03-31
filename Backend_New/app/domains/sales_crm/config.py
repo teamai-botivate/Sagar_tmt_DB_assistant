@@ -49,38 +49,38 @@ COLUMNS_RESTRICTION = {
 DB_SCHEMA = """
 Table: fms_leads
 Columns:
-- created_at (TIMESTAMP): When lead was created.
-- planned (DATE): Planned date for first action.
-- actual (DATE): Actual date of first action.
-- planned1 (DATE): Planned date for second action/follow-up.
-- actual1 (DATE): Actual date of second action.
-- lead_source (TEXT): Source of lead. Values: ['Indiamart', 'Direct Visit', 'Telephonic', 'Email', etc.].
-- status (TEXT): Lead heat/status. Values: ['Hot', 'Warm', 'Cold'].
+- created_at (TEXT): When lead was created. Stored as TEXT, cast to DATE: created_at::DATE.
+- planned (TEXT): Planned date for first action. Stored as TEXT, cast: planned::DATE.
+- actual (TEXT): Actual date of first action. Stored as TEXT, cast: actual::DATE.
+- planned1 (TEXT): Planned date for second action/follow-up. Stored as TEXT.
+- actual1 (TEXT): Actual date of second action. Stored as TEXT.
+- lead_source (TEXT): Source of lead. Values: ['Indiamart', 'Direct Visit', 'Telephonic', 'Email', 'WHATSAPP', 'Referral']. Use TRIM() when grouping.
+- status (TEXT): Lead heat/status. Values: ['Hot', 'Warm', 'Cold']. Use LOWER() for comparison.
 - enquiry_received_status (TEXT): Status of enquiry receipt. Values: ['yes', 'expected', NULL].
 - is_order_received (TEXT): Final order status. Values: ['yes', NULL]. (NULL implies No).
 
 Table: enquiry_to_order
 Columns:
-- timestamp (TIMESTAMP): When enquiry was recorded.
-- planned (DATE): Planned follow-up date.
-- actual (DATE): Actual follow-up date (completion).
+- timestamp (TIMESTAMP): When enquiry was recorded. Actual TIMESTAMP type.
+- planned (DATE): Planned follow-up date. Actual DATE type.
+- actual (DATE): Actual follow-up date (completion). Actual DATE type.
 - is_order_received (BOOLEAN): Whether enquiry converted. Values: [True, False, NULL].
 
 Table: make_quotation
 Columns:
-- timestamp (TIMESTAMP): Creation time.
+- timestamp (TIMESTAMP): Creation time. Actual TIMESTAMP type.
 - quotation_no (TEXT): Unique Quotation ID (QN-xxx).
-- quotation_date (DATE): Date on the quotation.
-- prepared_by (TEXT): User who made the quote (e.g., 'Aakash', 'SHEETAL PATEL').
-- company_name (TEXT): Customer company.
+- quotation_date (DATE): Date on the quotation. Actual DATE type.
+- prepared_by (TEXT): User who made the quote (e.g., 'Aakash', 'SHEETAL PATEL'). Use TRIM() when grouping.
+- company_name (TEXT): Customer company. Use TRIM() when grouping.
 - contact_name (TEXT): Customer contact person.
 - contact_no (TEXT): Customer phone.
-- consignee_state (TEXT): Customer state (e.g., 'Chhattisgarh').
+- consignee_state (TEXT): Customer state (e.g., 'Chhattisgarh'). Use TRIM() when grouping.
 - payment_terms (TEXT): Payment terms description (e.g., '100% advance').
 - delivery (TEXT): Delivery terms.
 - freight (TEXT): Freight charges/terms.
 - taxes (TEXT): Tax info.
-- items (JSONB/TEXT): JSON list of items quoted (code, name, qty, rate).
+- items (JSONB): JSON list of items quoted (code, name, qty, rate).
 - grand_total (NUMERIC): Total value of quotation.
 - pdf_url (TEXT): Link to generated PDF.
 
